@@ -66,4 +66,13 @@ class BoardRep:
         self.bitboards["black_king"] |= 1 << self.square_to_index("e8")
         self.bitboards["black_queen"] |= 1 << self.square_to_index("d8")
         return self.bitboards
+class ValidMoves(BoardRep):
+    def __init__(self,boardrep):
+        self.pieces_pos = boardrep.bitboards
+    def knight(self):
+        knight = self.pieces_pos["white_knights"] 
+        knight_attacks = 0
+        #TODO: DO knight_attacks |= shifitings, you will likely need a mask
+        #because if you shift naively it might overflow on the other side of the board
+        return knight_attacks
 

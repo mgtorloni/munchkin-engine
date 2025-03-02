@@ -39,7 +39,7 @@ def draw_pieces(screen: pygame.Surface, board:dict[str,list[str]], piece_images:
 def mouse_on_piece(board: dict[str,list[str]]) -> bool:
     """Returns True if you clicked on a piece, False otherwise"""
     mouse_pos = pygame.mouse.get_pos()
-    for squares in list(board.values())[::2]:#we are only white for now, so only check the even values
+    for squares in list(board.values())[::2]: #we are only white for now, so only check the even values
         for square in squares:
             x, y = square_to_pixel(square)
             piece_rect = pygame.Rect(x, y, SQUARE_SIZE, SQUARE_SIZE)
@@ -64,6 +64,7 @@ def main():
     
    
     running = True
+    clicked = False
     while running:
         
         board_gui(screen)
@@ -72,11 +73,15 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button==1:
+            if event.type == pygame.MOUSEBUTTONDOWN:
                 if mouse_on_piece(board):
                     print(pixel_to_square(pygame.mouse.get_pos()))
+                    clicked = True
+                if not mouse_on_piece(board) and clicked:
+                    print(f"Move to: {pixel_to_square(pygame.mouse.get_pos())}")
+                    clicked = False 
             if event.type == pygame.MOUSEBUTTONUP:
-                #TODO: MAKE DRAG AND DROP
+                
                 board_gui(screen)
                 draw_pieces(screen, board, pieces.piece_images(pygame,SQUARE_SIZE))
                 pygame.display.flip()
