@@ -69,10 +69,13 @@ class BoardRep:
 class ValidMoves(BoardRep):
     def __init__(self,boardrep):
         self.pieces_pos = boardrep.bitboards
-    def knight(self):
+    def knight(self)-> int:
         knight = self.pieces_pos["white_knights"] 
         knight_attacks = 0
-        #TODO: DO knight_attacks |= shifitings, you will likely need a mask
-        #because if you shift naively it might overflow on the other side of the board
+        notHFile=~sum(1 << (7 + 8 * i) for i in range(8))&0xFFFFFFFFFFFFFFFF
+        notGHFile= (notHFile & (~sum(1<< (6+8*i) for i in range(8))))&0xFFFFFFFFFFFFFFFF
+        notAFile=~sum(1 << (8 * i) for i in range(8))&0xFFFFFFFFFFFFFFFF
+        notABFile= (notAFile & (~sum(1<< (1+8*i) for i in range(8))))&0xFFFFFFFFFFFFFFFF
+        knight_attacks |= (knight>>15) & notAFile|(knight<<15) & notHFile|(knight<<10) & notABFile|(knight>>10)&notGHFile|(knight<<17) & notAFile|(knight>>17)&notHFile |(knight<<6)&notGHFile|(knight>>6)&notABFile
         return knight_attacks
 
