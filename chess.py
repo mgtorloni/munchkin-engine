@@ -17,7 +17,6 @@ def square_to_pixel(square: str) -> tuple[int,int]:
     y = (8 - rank) * SQUARE_SIZE
     return (x, y)
 
-
 def board_gui(screen: pygame.Surface)->None:
     """Draw the chessboard """
     for i in range(8):
@@ -39,13 +38,13 @@ def draw_pieces(screen: pygame.Surface, board:dict[str,list[str]], piece_images:
 def mouse_on_piece(board: dict[str,list[str]]) -> bool:
     """Returns True if you clicked on a piece, False otherwise"""
     mouse_pos = pygame.mouse.get_pos()
-    for squares in list(board.values())[::2]: #we are only white for now, so only check the even values
+    for piece,squares in list(board.items())[::2]: #we are only white for now, so only check the even values
         for square in squares:
             x, y = square_to_pixel(square)
             piece_rect = pygame.Rect(x, y, SQUARE_SIZE, SQUARE_SIZE)
             if piece_rect.collidepoint(mouse_pos):
-                return True
-    return False
+                return (True,piece)
+    return (False,None)
 
 #------------------INIT-------------------
 pygame.init()
@@ -55,18 +54,18 @@ SQUARE_SIZE:int = min(width // 8, height // 8)
 #-----------------------------------------
 
 def main():
-   
     b = BoardRep()
     bitboards = b.initial_position()
     
     # dictionary mapping piece names to algebraic square lists
     board = {piece: b.squares_from_rep(bitboards[piece]) for piece in bitboards}
     
-   
+    #Variables that we are going to need for the main loop:
     running = True
     clicked = False
+    piece = None 
+    #-----------------
     while running:
-        
         board_gui(screen)
         draw_pieces(screen, board, pieces.piece_images(pygame,SQUARE_SIZE))
         pygame.display.flip()
@@ -74,14 +73,15 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if mouse_on_piece(board):
-                    print(pixel_to_square(pygame.mouse.get_pos()))
+                on_piece = mouse_on_piece(board)
+                if on_piece[0]:#if we have clicked on a piece
                     clicked = True
-                if not mouse_on_piece(board) and clicked:
-                    print(f"Move to: {pixel_to_square(pygame.mouse.get_pos())}")
+                    piece = on_piece[1] # we save that piece
+                if not on_piece[0] and clicked: # If we have clicked on a piece and now we are clicking on another square
+                    print(f"Move {piece} to: {pixel_to_square(pygame.mouse.get_pos())}") #This is a progression into updating the board, the next
+                    #part is you have to find which of the knights/pawns/rooks/bishops we are moving and then we can redraw the board
                     clicked = False 
             if event.type == pygame.MOUSEBUTTONUP:
-                
                 board_gui(screen)
                 draw_pieces(screen, board, pieces.piece_images(pygame,SQUARE_SIZE))
                 pygame.display.flip()
