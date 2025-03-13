@@ -37,6 +37,11 @@ def square_to_pixel(square: str) -> tuple[int,int]:
     y = (8 - rank) * SQUARE_SIZE
     return (x, y)
 
-               
 
+def reverse_bitboard(n):
+    result = 0
+    for i in range(64):
+        if n & (1 << i):
+            result |= 1 << (64- 1 - i)
+    return result
 
