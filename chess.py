@@ -23,21 +23,15 @@ def draw_pieces(
     piece_images: tuple[dict[str, pygame.Surface], dict[str, pygame.Surface]]) -> None:
     """
     Draw all pieces from both sides on the board.
-    `board[0]` = dict of white bitboards,
-    `board[1]` = dict of black bitboards.
-    `piece_images[0]` = dict of white piece images,
-    `piece_images[1]` = dict of black piece images.
     """
-    SQUARE_SIZE = 120  # or constants.SQUARE_SIZE, etc.
 
     for side_index, side_bitboards in enumerate(board):
-        # side_index = 0 for white, 1 for black
         for piece_name, bitboard in side_bitboards.items():
             while bitboard:
                 lsb = bitboard & -bitboard           # isolate lowest set bit
                 square_index = lsb.bit_length() - 1  # square [0..63]
                 
-                # Compute x,y on your display
+                # Compute x,y on display
                 x = (square_index % 8) * SQUARE_SIZE
                 y = (7 - (square_index // 8)) * SQUARE_SIZE  # flip rank
 
