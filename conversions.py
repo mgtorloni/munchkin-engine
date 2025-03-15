@@ -1,8 +1,6 @@
 import pygame
-
-width, height= 1280, 960
-SQUARE_SIZE:int = min(width // 8, height // 8) # TODO: I have this in 2 places, I don't know how good that is :/
-
+import constants 
+SQUARE_SIZE = constants.SQUARE_SIZE
 def square_to_index(square: str) -> int:
     """Returns index given algebraic notation of a square"""
     file = square[0].lower()
@@ -37,11 +35,14 @@ def square_to_pixel(square: str) -> tuple[int,int]:
     y = (8 - rank) * SQUARE_SIZE
     return (x, y)
 
+def sub_64(a: int, b: int) -> int:
+    # (a - b) mod 2^64
+    return (a - b) & 0xFFFFFFFFFFFFFFFF
 
 def reverse_bitboard(n):
     result = 0
     for i in range(64):
-        if n & (1 << i):
-            result |= 1 << (64- 1 - i)
+        bit = (n>>i) & 1
+        result |= bit << (63 - i)
     return result
 

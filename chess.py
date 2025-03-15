@@ -2,11 +2,12 @@ import pygame
 from boardrep import BoardRep
 import pieces
 import conversions
+import constants
 #------------------INIT-------------------
 pygame.init()
-width, height= 1280, 960
-screen = pygame.display.set_mode((width, height))
-SQUARE_SIZE:int = min(width // 8, height // 8)
+WIDTH, HEIGHT = 1280, 960
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+SQUARE_SIZE:int = constants.SQUARE_SIZE 
 #-----------------------------------------
 
 def board_gui(screen: pygame.Surface)->None:
@@ -16,22 +17,38 @@ def board_gui(screen: pygame.Surface)->None:
             color = (122,74,61) if (i + j) % 2 == 0 else (95, 54, 53)
             pygame.draw.rect(screen, color, pygame.Rect(j * SQUARE_SIZE, i * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
 
-def draw_pieces(screen: pygame.Surface, board: tuple[dict[str, int], dict[str, int]], piece_images: dict[str, pygame.Surface]) -> None:
-    """Draw the pieces"""
-    for side in board:  # two sides in a tuple
-        for piece, bitboard in side.items():  # every piece has its own bitboard
-            while bitboard:
-                lsb = bitboard & -bitboard  # extract least significant bit
-                index = lsb.bit_length() - 1  # find square index
-                x = (index % 8) * SQUARE_SIZE
-                y = (7 - index // 8) * SQUARE_SIZE  # invert rank for correct display
-                
-                piece_rect = piece_images[piece].get_rect()
-                piece_rect.center = (x + SQUARE_SIZE // 2, y + SQUARE_SIZE // 2)  # center piece in square
-                screen.blit(piece_images[piece], piece_rect)  # draw piece
-                
-                bitboard &= bitboard - 1  # remove processed bit
+def draw_pieces(
+    screen: pygame.Surface, 
+    board: tuple[dict[str, int], dict[str, int]], 
+    piece_images: tuple[dict[str, pygame.Surface], dict[str, pygame.Surface]]) -> None:
+    """
+    Draw all pieces from both sides on the board.
+    `board[0]` = dict of white bitboards,
+    `board[1]` = dict of black bitboards.
+    `piece_images[0]` = dict of white piece images,
+    `piece_images[1]` = dict of black piece images.
+    """
+    SQUARE_SIZE = 120  # or constants.SQUARE_SIZE, etc.
 
+    for side_index, side_bitboards in enumerate(board):
+        # side_index = 0 for white, 1 for black
+        for piece_name, bitboard in side_bitboards.items():
+            while bitboard:
+                lsb = bitboard & -bitboard           # isolate lowest set bit
+                square_index = lsb.bit_length() - 1  # square [0..63]
+                
+                # Compute x,y on your display
+                x = (square_index % 8) * SQUARE_SIZE
+                y = (7 - (square_index // 8)) * SQUARE_SIZE  # flip rank
+
+                # Get the correct piece image from piece_images[side_index]
+                piece_surf = piece_images[side_index][piece_name]
+                piece_rect = piece_surf.get_rect()
+                piece_rect.center = (x + SQUARE_SIZE // 2, y + SQUARE_SIZE // 2)
+                screen.blit(piece_surf, piece_rect)
+
+                # Clear the bit we just drew
+                bitboard &= bitboard - 1
 
 def mouse_on_piece(board:dict[str,int]) -> tuple[bool,str]:
     mouse_pos = pygame.mouse.get_pos()
