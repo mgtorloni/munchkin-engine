@@ -62,6 +62,9 @@ class BoardRep:
         return (self.bitboard_white,self.bitboard_black)
 
 class ValidMoves:
+    #TODO: REFACTOR THIS, WE GOT WAY TOO MANY OCCURRENCES OF "own_pieces" AND "occupied_squares", WE CAN'T
+    #JUST PUT IT IN INIT BECAUSE IT HAS TO BE UPDATED AFTER EVERY MOVE AND THE IDEA IS CALLING
+    #ONE OF THE FUNCTIONS DEPENDING ON WHAT PIECE WE CLICK ON
     def __init__(self,boardrep: BoardRep):
         self.board= {"white":boardrep.bitboard_white,"black":boardrep.bitboard_black}
         self.notHFile=~sum(1 << (7 + 8 * i) for i in range(8))&0xFFFFFFFFFFFFFFFF
@@ -69,8 +72,7 @@ class ValidMoves:
         self.notAFile=~sum(1 << (8 * i) for i in range(8))&0xFFFFFFFFFFFFFFFF
         self.notABFile= (self.notAFile & (~sum(1<< (1+8*i) for i in range(8))))&0xFFFFFFFFFFFFFFFF
 
-    def knight_attacks(self,index:int,color:str)-> int:
-        #knight = self.board[color+"_knight"] 
+    def knight_attacks(self,index:int,color:str="white")-> int:
         own_pieces = sum(self.board[color].values()) 
         piece_square = 1<<index
         knight_attacks = ((piece_square >> 15) & self.notAFile) | ((piece_square << 15) & self.notHFile) | \
@@ -80,21 +82,29 @@ class ValidMoves:
         knight_attacks &= ~own_pieces
         return knight_attacks
     
-    def king_attacks(self,square:int,color:str)->int:
+    def king_attacks(self,square:int,color:str="white")->int:
         king_attacks = ((square >> 1) & self.notHFile) | ((square << 1) & self.notAFile) |  \
                ((square >> 7) & self.notAFile) | ((square >> 9) & self.notHFile) |  \
                ((square << 7) & self.notHFile) | ((square << 9) & self.notAFile) |  \
                (square >> 8) | (square << 8)
         return king_attacks
 
-    def pawns_attacks(self,index:int,color:str)->int:
+    def pawn_attacks(self,index:int,color:str="white")->int:
         own_pieces = sum(self.board[color].values()) 
+        occupied_squares = sum(self.board["white"].values())|sum(self.board["black"].values())
         piece_square = 1<<index
         if color == "white":
-            return (((piece_square << 9) & self.notAFile) | ((piece_square << 7) & self.notHFile))
-        else:  # Black pawns attack downward
-            return ((piece_square >> 9) & self.notHFile) | ((piece_square >> 7) & self.notAFile)
-    #TODO: PAWN MOVES AND ATTACKS ARE INDEED DIFFERENT
+            enemy_pieces = sum(self.board["black"].values()) 
+            attacks = ((piece_square << 9) & self.notAFile) | ((piece_square << 7) & self.notHFile)
+            attacks &=enemy_pieces
+            moves = (piece_square<<8) &~ occupied_squares
+            return attacks|moves
+        elif color=="black":  # Black pawns attack downward
+            enemy_pieces = sum(self.board["white"].values()) 
+            attacks = ((piece_square >> 9) & self.notAFile) | ((piece_square >> 7) & self.notHFile)
+            attacks &=enemy_pieces
+            moves = (piece_square>>8) &~ occupied_squares
+            return attacks|moves
 
     def hyperbola_quint(self,index:int,mask:list[int],color:str = "white")->int:
         occupied_squares = sum(self.board["white"].values())|sum(self.board["black"].values())
@@ -102,7 +112,6 @@ class ValidMoves:
         #formula : ((o&m)-2s)^reverse(reverse(o&m)-2reverse(s))&m
         sliderAttacks = (((occupied_squares & mask) - (slider_square << 1)) ^
                         conversions.reverse_bitboard(conversions.reverse_bitboard(occupied_squares & mask) - (conversions.reverse_bitboard(slider_square) << 1))) & mask
-
         return sliderAttacks
 
     def rook_attacks(self,index:int,color:str = "white")->int:
@@ -112,6 +121,7 @@ class ValidMoves:
         rookAttacks = self.hyperbola_quint(index,hmask,color) | self.hyperbola_quint(index,vmask,color)
         rookAttacks &= ~own_pieces 
         return rookAttacks
+
     def bishop_attacks(self,index:int,color:str = "white")->int:
         own_pieces = sum(self.board[color].values())
         right_mask = constants.BISHOP_45DIAG[index]
