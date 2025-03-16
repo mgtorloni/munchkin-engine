@@ -42,7 +42,7 @@ class BoardRep:
         return full_bitboard
 
     def initial_position(self)->tuple[dict,dict]:
-        """Set initial positions on the chess board"""
+        """Set initial positions of pieces on the chess board"""
         for file in 'abcdefgh':
             self.bitboard_white["pawns"] |= 1 << conversions.square_to_index(file + "2")
             self.bitboard_black["pawns"] |= 1 << conversions.square_to_index(file + "7")
@@ -82,11 +82,13 @@ class ValidMoves:
         knight_attacks &= ~own_pieces
         return knight_attacks
     
-    def king_attacks(self,square:int,color:str="white")->int:
-        king_attacks = ((square >> 1) & self.notHFile) | ((square << 1) & self.notAFile) |  \
-               ((square >> 7) & self.notAFile) | ((square >> 9) & self.notHFile) |  \
-               ((square << 7) & self.notHFile) | ((square << 9) & self.notAFile) |  \
-               (square >> 8) | (square << 8)
+    def king_attacks(self,index:int,color:str="white")->int:
+        piece_square = 1<<index
+        king_attacks = ((piece_square >> 1) & self.notHFile) | ((piece_square << 1) & self.notAFile) |  \
+               ((piece_square >> 7) & self.notAFile) | ((piece_square >> 9) & self.notHFile) |  \
+               ((piece_square << 7) & self.notHFile) | ((piece_square << 9) & self.notAFile) |  \
+               (piece_square >> 8) | (piece_square << 8)
+        #TODO: king_attacks &= ~(knight_attacks(index,color = "opposite color")|...)
         return king_attacks
 
     def pawn_attacks(self,index:int,color:str="white")->int:
