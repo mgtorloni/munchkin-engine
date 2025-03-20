@@ -72,6 +72,7 @@ class ValidMoves:
         self.notAFile=~sum(1 << (8 * i) for i in range(8))&0xFFFFFFFFFFFFFFFF
         self.notABFile= (self.notAFile & (~sum(1<< (1+8*i) for i in range(8))))&0xFFFFFFFFFFFFFFFF
 
+    #TODO: INSTEAD OF HAVING THE INDEX FOR EACH FUNCTION WE COULD JUST USE THE PIECE SQUARE IN BIT FORM. SO MUCH EASIER.
     def knight_attacks(self,index:int,color:str="white")-> int:
         own_pieces = sum(self.board[color].values()) 
         piece_square = 1<<index
@@ -83,12 +84,29 @@ class ValidMoves:
         return knight_attacks
     
     def king_attacks(self,index:int,color:str="white")->int:
+        own_pieces = sum(self.board[color].values())
         piece_square = 1<<index
         king_attacks = ((piece_square >> 1) & self.notHFile) | ((piece_square << 1) & self.notAFile) |  \
                ((piece_square >> 7) & self.notAFile) | ((piece_square >> 9) & self.notHFile) |  \
                ((piece_square << 7) & self.notHFile) | ((piece_square << 9) & self.notAFile) |  \
                (piece_square >> 8) | (piece_square << 8)
-        #TODO: king_attacks &= ~(knight_attacks(index,color = "opposite color")|...)
+        
+        opposite = "black" if color=="white" else "white" # opposite color to the one given in the argument above
+        board_op = self.board[opposite] # opposite board 
+        king_op = conversions.squares_from_rep(board_op["king"])#opposite king
+        opposite_king_attacks = ((king_op>> 1) & self.notHFile) | ((king_op<< 1) & self.notAFile) |  \
+               ((king_op>> 7) & self.notAFile) | ((king_op>> 9) & self.notHFile) |  \
+               ((king_op<< 7) & self.notHFile) | ((king_op<< 9) & self.notAFile) |  \
+               (king_op>> 8) | (king_op<< 8)
+        #TODO: THE BELOW IF VERY VERY WRONG, i.e WE NEED TO CONVERT THE POSITIONS INTO INDEXES (THAT IS IF WE DON'T DO THE TODO ABOVE)
+        king_attacks &= ~(self.knight_attacks(board_op["knights"],opposite)|
+                          opposite_king_attacks|
+                          self.pawn_attacks(board_op["pawns"],opposite)|
+                          self.queen_attacks(board_op["queen"],opposite)|
+                          self.bishop_attacks(board_op["bishop"],opposite)|
+                          self.rook_attacks(board_op["rook"],opposite))
+    
+        king_attacks &= ~own_pieces 
         return king_attacks
 
     def pawn_attacks(self,index:int,color:str="white")->int:
@@ -108,8 +126,8 @@ class ValidMoves:
             moves = (piece_square>>8) &~ occupied_squares
             return attacks|moves
 
-    def hyperbola_quint(self,index:int,mask:list[int],color:str = "white")->int:
-        occupied_squares = sum(self.board["white"].values())|sum(self.board["black"].values())
+    def hyperbola_quint(self,index:int,mask:list[int],color:str = "white")->int: #slider attacks formula
+        occupied_squares = sum(self.board["white"].values())|sum(self.board["black"].values()) #all occupied squares
         slider_square = 1<<index
         #formula : ((o&m)-2s)^reverse(reverse(o&m)-2reverse(s))&m
         sliderAttacks = (((occupied_squares & mask) - (slider_square << 1)) ^
@@ -117,6 +135,7 @@ class ValidMoves:
         return sliderAttacks
 
     def rook_attacks(self,index:int,color:str = "white")->int:
+        print(index)
         own_pieces = sum(self.board[color].values()) 
         hmask = constants.ROOK_MASK_RANK[index]
         vmask = constants.ROOK_MASK_FILE[index]

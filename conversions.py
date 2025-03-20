@@ -9,7 +9,7 @@ def square_to_index(square: str) -> int:
     rank_index = rank - 1  # converting rank to 0-indexed 
     return rank_index * 8 + file_index
 
-def squares_from_rep(bitboard: int) -> list:
+def squares_from_rep(bitboard: int) -> list: # TODO: GET RID OF THIS EVERYWHERE WE DON'T NEED THE SQUARES IN HUMAN FORM
     """Returns a list of the square(s) of the bitboard of a piece in algebraic notation""" 
     squares = []
     for index in range(64):
