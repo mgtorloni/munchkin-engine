@@ -73,32 +73,29 @@ class ValidMoves:
         self.notABFile= (self.notAFile & (~sum(1<< (1+8*i) for i in range(8))))&0xFFFFFFFFFFFFFFFF
 
     #TODO: INSTEAD OF HAVING THE INDEX FOR EACH FUNCTION WE COULD JUST USE THE PIECE SQUARE IN BIT FORM. SO MUCH EASIER.
-    def knight_attacks(self,index:int,color:str="white")-> int:
+    def knight_attacks(self,piece_bitboard:int,color:str="white")-> int:
         own_pieces = sum(self.board[color].values()) 
-        piece_square = 1<<index
-        knight_attacks = ((piece_square >> 15) & self.notAFile) | ((piece_square << 15) & self.notHFile) | \
-                ((piece_square << 10) & self.notABFile) | ((piece_square >> 10) & self.notGHFile) | \
-                  ((piece_square << 17) & self.notHFile) | ((piece_square >> 17) & self.notAFile) | \
-                  ((piece_square << 6)  & self.notGHFile) | ((piece_square >> 6)  & self.notABFile)
+        knight_attacks = ((piece_bitboard >> 15) & self.notAFile) | ((piece_bitboard << 15) & self.notHFile) | \
+                ((piece_bitboard << 10) & self.notABFile) | ((piece_bitboard >> 10) & self.notGHFile) | \
+                  ((piece_bitboard << 17) & self.notHFile) | ((piece_bitboard >> 17) & self.notAFile) | \
+                  ((piece_bitboard << 6)  & self.notGHFile) | ((piece_bitboard >> 6)  & self.notABFile)
         knight_attacks &= ~own_pieces
         return knight_attacks
     
-    def king_attacks(self,index:int,color:str="white")->int:
+    def king_attacks(self,piece_bitboard:int,color:str="white")->int:
         own_pieces = sum(self.board[color].values())
-        piece_square = 1<<index
-        king_attacks = ((piece_square >> 1) & self.notHFile) | ((piece_square << 1) & self.notAFile) |  \
-               ((piece_square >> 7) & self.notAFile) | ((piece_square >> 9) & self.notHFile) |  \
-               ((piece_square << 7) & self.notHFile) | ((piece_square << 9) & self.notAFile) |  \
-               (piece_square >> 8) | (piece_square << 8)
+        king_attacks = ((piece_bitboard >> 1) & self.notHFile) | ((piece_bitboard << 1) & self.notAFile) |  \
+               ((piece_bitboard >> 7) & self.notAFile) | ((piece_bitboard >> 9) & self.notHFile) |  \
+               ((piece_bitboard << 7) & self.notHFile) | ((piece_bitboard << 9) & self.notAFile) |  \
+               (piece_bitboard >> 8) | (piece_bitboard << 8)
         
         opposite = "black" if color=="white" else "white" # opposite color to the one given in the argument above
         board_op = self.board[opposite] # opposite board 
-        king_op = conversions.squares_from_rep(board_op["king"])#opposite king
+        king_op = board_op["king"]#opposite king
         opposite_king_attacks = ((king_op>> 1) & self.notHFile) | ((king_op<< 1) & self.notAFile) |  \
                ((king_op>> 7) & self.notAFile) | ((king_op>> 9) & self.notHFile) |  \
                ((king_op<< 7) & self.notHFile) | ((king_op<< 9) & self.notAFile) |  \
                (king_op>> 8) | (king_op<< 8)
-        #TODO: THE BELOW IF VERY VERY WRONG, i.e WE NEED TO CONVERT THE POSITIONS INTO INDEXES (THAT IS IF WE DON'T DO THE TODO ABOVE)
         king_attacks &= ~(self.knight_attacks(board_op["knights"],opposite)|
                           opposite_king_attacks|
                           self.pawn_attacks(board_op["pawns"],opposite)|
@@ -109,33 +106,30 @@ class ValidMoves:
         king_attacks &= ~own_pieces 
         return king_attacks
 
-    def pawn_attacks(self,index:int,color:str="white")->int:
+    def pawn_attacks(self,piece_bitboard:int,color:str="white")->int:
         own_pieces = sum(self.board[color].values()) 
         occupied_squares = sum(self.board["white"].values())|sum(self.board["black"].values())
-        piece_square = 1<<index
         if color == "white":
             enemy_pieces = sum(self.board["black"].values()) 
-            attacks = ((piece_square << 9) & self.notAFile) | ((piece_square << 7) & self.notHFile)
+            attacks = ((piece_bitboard<< 9) & self.notAFile) | ((piece_bitboard<< 7) & self.notHFile)
             attacks &=enemy_pieces
-            moves = (piece_square<<8) &~ occupied_squares
+            moves = (piece_bitboard<<8) &~ occupied_squares
             return attacks|moves
         elif color=="black":  # Black pawns attack downward
             enemy_pieces = sum(self.board["white"].values()) 
-            attacks = ((piece_square >> 9) & self.notAFile) | ((piece_square >> 7) & self.notHFile)
+            attacks = ((piece_bitboard>> 9) & self.notAFile) | ((piece_bitboard>> 7) & self.notHFile)
             attacks &=enemy_pieces
-            moves = (piece_square>>8) &~ occupied_squares
+            moves = (piece_bitboard>>8) &~ occupied_squares
             return attacks|moves
 
-    def hyperbola_quint(self,index:int,mask:list[int],color:str = "white")->int: #slider attacks formula
+    def hyperbola_quint(self,slider_bitboard:int,mask:list[int],color:str = "white")->int: #slider attacks formula
         occupied_squares = sum(self.board["white"].values())|sum(self.board["black"].values()) #all occupied squares
-        slider_square = 1<<index
         #formula : ((o&m)-2s)^reverse(reverse(o&m)-2reverse(s))&m
-        sliderAttacks = (((occupied_squares & mask) - (slider_square << 1)) ^
-                        conversions.reverse_bitboard(conversions.reverse_bitboard(occupied_squares & mask) - (conversions.reverse_bitboard(slider_square) << 1))) & mask
+        sliderAttacks = (((occupied_squares & mask) - (slider_bitboard<< 1)) ^
+                        conversions.reverse_bitboard(conversions.reverse_bitboard(occupied_squares & mask) - (conversions.reverse_bitboard(slider_bitboard) << 1))) & mask
         return sliderAttacks
 
     def rook_attacks(self,index:int,color:str = "white")->int:
-        print(index)
         own_pieces = sum(self.board[color].values()) 
         hmask = constants.ROOK_MASK_RANK[index]
         vmask = constants.ROOK_MASK_FILE[index]
