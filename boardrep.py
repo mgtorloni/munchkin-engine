@@ -5,30 +5,28 @@ class BoardRep:
     def __init__(self):
         self.bitboard_black={
             "pawns": 0,
-            "knights": 0,
-            "bishops": 0,
+            "knight": 0,
+            "bishop": 0,
             "queen": 0,
-            "rooks": 0,
+            "rook": 0,
             "king": 0
         }
         self.bitboard_white = { 
             "pawns": 0,
-            "knights": 0,
-            "bishops": 0,
-            "queen": 0, 
-            "rooks": 0,
-            "king": 0,
+            "knight": 0,
+            "bishop": 0,
+            "queen": 0,
+            "rook": 0,
+            "king": 0        
         }
-   
 
-    def set_bit(self,square: str, piece: str,color = "white") -> int:
+    def set_bit(self,square:int, piece: str,color = "white") -> int:
         """Change the position of a piece"""
-        index = conversions.square_to_index(square)
-        if color.lower() == "white":
-            self.bitboard_white[piece] |= 1 << index
+        if color.lower() == "white": 
+            self.bitboard_white[piece] |= square
             return self.bitboard_white
         elif color.lower() == "black":
-            self.bitboard_black[piece] |= 1 << index
+            self.bitboard_black[piece] |= square
             return self.bitboard_black
         else:
             raise ValueError("Color must be either 'white' or 'black'")
@@ -37,28 +35,19 @@ class BoardRep:
     def full_bitboard(self):
         """Returns where all of the pieces are"""
         full_bitboard = 0
-        for bitboard in self.bitboards.values():
+        for bitboard in self.bitboard_white.values():
+            full_bitboard |= bitboard 
+        for bitboard in self.bitboard_black.values():
             full_bitboard |= bitboard 
         return full_bitboard
 
     def initial_position(self)->tuple[dict,dict]:
         """Set initial positions of pieces on the chess board"""
-        for file in 'abcdefgh':
-            self.bitboard_white["pawns"] |= 1 << conversions.square_to_index(file + "2")
-            self.bitboard_black["pawns"] |= 1 << conversions.square_to_index(file + "7")
-        for file in 'ah':
-            self.bitboard_white["rooks"] |= 1 << conversions.square_to_index(file + "1")
-            self.bitboard_black["rooks"] |= 1 << conversions.square_to_index(file + "8")
-        for file in 'bg':
-            self.bitboard_white["knights"] |= 1 << conversions.square_to_index(file + "1")
-            self.bitboard_black["knights"] |= 1 << conversions.square_to_index(file + "8")
-        for file in 'cf':
-            self.bitboard_white["bishops"] |= 1 << conversions.square_to_index(file + "1")
-            self.bitboard_black["bishops"] |= 1 << conversions.square_to_index(file + "8")
-        self.bitboard_white["king"] |= 1 << conversions.square_to_index("e1")
-        self.bitboard_white["queen"] |= 1 << conversions.square_to_index("d1")
-        self.bitboard_black["king"] |= 1 << conversions.square_to_index("e8")
-        self.bitboard_black["queen"] |= 1 << conversions.square_to_index("d8")
+        
+        self.bitboard_white = constants.INITIAL_WHITE
+        self.bitboard_black = constants.INITIAL_BLACK 
+        print(self.bitboard_white)
+        print(self.bitboard_black)
         return (self.bitboard_white,self.bitboard_black)
 
 class ValidMoves:
@@ -66,13 +55,12 @@ class ValidMoves:
     #JUST PUT IT IN INIT BECAUSE IT HAS TO BE UPDATED AFTER EVERY MOVE AND THE IDEA IS CALLING
     #ONE OF THE FUNCTIONS DEPENDING ON WHAT PIECE WE CLICK ON
     def __init__(self,boardrep: BoardRep):
-        self.board= {"white":boardrep.bitboard_white,"black":boardrep.bitboard_black}
-        self.notHFile=~sum(1 << (7 + 8 * i) for i in range(8))&0xFFFFFFFFFFFFFFFF
-        self.notGHFile= (self.notHFile & (~sum(1<< (6+8*i) for i in range(8))))&0xFFFFFFFFFFFFFFFF
-        self.notAFile=~sum(1 << (8 * i) for i in range(8))&0xFFFFFFFFFFFFFFFF
-        self.notABFile= (self.notAFile & (~sum(1<< (1+8*i) for i in range(8))))&0xFFFFFFFFFFFFFFFF
+        self.board = {"white":boardrep.bitboard_white,"black":boardrep.bitboard_black}
+        self.notHFile = ~sum(1 << (7 + 8 * i) for i in range(8))&0xFFFFFFFFFFFFFFFF
+        self.notGHFile = (self.notHFile & (~sum(1<< (6+8*i) for i in range(8))))&0xFFFFFFFFFFFFFFFF
+        self.notAFile = ~sum(1 << (8 * i) for i in range(8))&0xFFFFFFFFFFFFFFFF
+        self.notABFile = (self.notAFile & (~sum(1<< (1+8*i) for i in range(8))))&0xFFFFFFFFFFFFFFFF
 
-    #TODO: INSTEAD OF HAVING THE INDEX FOR EACH FUNCTION WE COULD JUST USE THE PIECE SQUARE IN BIT FORM. SO MUCH EASIER.
     def knight_attacks(self,piece_bitboard:int,color:str="white")-> int:
         own_pieces = sum(self.board[color].values()) 
         knight_attacks = ((piece_bitboard >> 15) & self.notAFile) | ((piece_bitboard << 15) & self.notHFile) | \
@@ -91,17 +79,18 @@ class ValidMoves:
         
         opposite = "black" if color=="white" else "white" # opposite color to the one given in the argument above
         board_op = self.board[opposite] # opposite board 
-        king_op = board_op["king"]#opposite king
+        king_op = board_op["king"] #opposite color king
+        #TODO: HARD CODE VALUES LIKE WE DID WITH BISHOPS,ROOKS AND QUEENS 
         opposite_king_attacks = ((king_op>> 1) & self.notHFile) | ((king_op<< 1) & self.notAFile) |  \
                ((king_op>> 7) & self.notAFile) | ((king_op>> 9) & self.notHFile) |  \
                ((king_op<< 7) & self.notHFile) | ((king_op<< 9) & self.notAFile) |  \
                (king_op>> 8) | (king_op<< 8)
-        king_attacks &= ~(self.knight_attacks(board_op["knights"],opposite)|
+        king_attacks &= ~(self.knight_attacks(board_op["knight"],opposite)|
                           opposite_king_attacks|
                           self.pawn_attacks(board_op["pawns"],opposite)|
-                          self.queen_attacks(board_op["queen"],opposite)|
-                          self.bishop_attacks(board_op["bishop"],opposite)|
-                          self.rook_attacks(board_op["rook"],opposite))
+                          self.queen_attacks(board_op["queen"].bit_length() - 1,opposite)|
+                          self.bishop_attacks(board_op["bishop"].bit_length() - 1,opposite)|
+                          self.rook_attacks(board_op["rook"].bit_length() - 1,opposite))
     
         king_attacks &= ~own_pieces 
         return king_attacks
@@ -144,5 +133,6 @@ class ValidMoves:
         bishopAttacks = self.hyperbola_quint(index,right_mask,color) | self.hyperbola_quint(index,left_mask,color)
         bishopAttacks&= ~own_pieces
         return bishopAttacks
+
     def queen_attacks(self,index:int,color:str = "white")->int:
         return self.rook_attacks(index,color)|self.bishop_attacks(index,color)
