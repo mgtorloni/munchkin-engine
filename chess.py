@@ -1,5 +1,5 @@
 import pygame
-from boardrep import BoardRep
+from boardrep import BoardRep,ValidMoves
 import pieces
 import conversions
 import constants
@@ -44,24 +44,26 @@ def draw_pieces(
                 # Clear the bit we just drew
                 bitboard &= bitboard - 1
 
-def mouse_on_piece(board:dict[str,int]) -> tuple[bool,str]:
+def mouse_on_piece(bitboard:dict[str,int]) -> tuple[bool,str]:
     mouse_pos = pygame.mouse.get_pos()
     clicked_square = conversions.pixel_to_square(mouse_pos)
-    for piece, bitboard in board.items():
-        squares = conversions.squares_from_rep(bitboard)
-        if clicked_square in squares:
-            return True, clicked_square
+    for piece, bitboard in bitboard.items(): #for every piece and bitboard in the dictionary
+        if clicked_square & bitboard: #if the clicked_square & bitboard != 0 then we have clicked on a piece
+            return (True, clicked_square, piece)
     return False, ""
 
 def main():
     b = BoardRep()
     bitboards = b.initial_position()
-    
+    print(b)
     #Variables that we are going to need for the main loop:
     running = True
     clicked = False
+    square = None
     piece = None 
+    attack_functions = dict()  
     #-----------------
+    
     while running:
         board_gui(screen)
         draw_pieces(screen, bitboards, pieces.piece_images(pygame,SQUARE_SIZE))
@@ -71,16 +73,33 @@ def main():
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
                 on_piece = mouse_on_piece(bitboards[0])#we are only checking for white pieces
+
                 if on_piece[0]:#if we have clicked on a piece
                     clicked = True
-                    piece = on_piece[1] # we save that piece
+                    square = on_piece[1] # we save that square 
+                    piece = on_piece[2]
+
+                    v = ValidMoves(b)
+                    attack_functions = {
+                        "pawn": v.pawn_attacks,   
+                        "rook": v.rook_attacks,   
+                        "knight": v.knight_attacks, 
+                        "bishop": v.bishop_attacks,
+                        "queen": v.queen_attacks,
+                        "king": v.king_attacks
+                    }
+                    valid_attacks = attack_functions[piece](square) #Since we are not specifying the color we always get "white"
+                    print(valid_attacks)
+                #TODO: FIX THIS WHOLE THING WITH CLICKED AND VALID_ATTACKS, ITS ALL NOT WORKING  
                 if not on_piece[0] and clicked: # If we have clicked on a piece and now we are clicking on another square
-                    print(f"Move {piece} to: {conversions.pixel_to_square(pygame.mouse.get_pos())}") #This is a progression into updating the board, the next
-                    #part is you have to find which of the knights/pawns/rooks/bishops we are moving and then we can redraw the board
+                    if conversions.pixel_to_square(pygame.mouse.get_pos()) == valid_attacks:
+                        print(f"Move {piece} on {conversions.squares_from_rep(square)} to {conversions.squares_from_rep(conversions.pixel_to_square(pygame.mouse.get_pos()))}")
                     clicked = False 
+                
             if event.type == pygame.MOUSEBUTTONUP:
                 board_gui(screen)
                 draw_pieces(screen, bitboards, pieces.piece_images(pygame,SQUARE_SIZE))
+                v = ValidMoves(b)
                 pygame.display.flip()
                 #TODO: pygame.display.update(rectangles_to_update) 
     pygame.quit()

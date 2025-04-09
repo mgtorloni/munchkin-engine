@@ -1,13 +1,9 @@
 import pygame
 import constants 
 SQUARE_SIZE = constants.SQUARE_SIZE
-def square_to_index(square: str) -> int:
-    """Returns index given algebraic notation of a square"""
-    file = square[0].lower()
-    rank = int(square[1])
-    file_index = ord(file) - ord('a')  # convert file into a decimal 0-7
-    rank_index = rank - 1  # converting rank to 0-indexed 
-    return rank_index * 8 + file_index
+def square_to_index(bitboard: int) -> int:
+    """Returns index given a bitboard with one bit in it"""     
+    return (bitboard & -bitboard).bit_length()-1
 
 def squares_from_rep(bitboard: int) -> list: # TODO: GET RID OF THIS EVERYWHERE WE DON'T NEED THE SQUARES IN HUMAN FORM
     """Returns a list of the square(s) of the bitboard of a piece in algebraic notation""" 
@@ -20,12 +16,12 @@ def squares_from_rep(bitboard: int) -> list: # TODO: GET RID OF THIS EVERYWHERE 
             squares.append(square)
     return squares
 
-def pixel_to_square(coords:tuple[int,int])->str:
-    x = coords[0]
-    y = coords[1]
-    rank = 8-int(y)//SQUARE_SIZE
-    file_ord = int(x)//SQUARE_SIZE+ord('a')
-    return f"{chr(file_ord)+str(rank)}"
+def pixel_to_square(coords: tuple[int, int]) -> int:
+    x, y = coords
+    rank = 8 - int(y) // SQUARE_SIZE
+    file = int(x) // SQUARE_SIZE
+    index = (rank - 1) * 8 + file
+    return 1 << index
 
 def square_to_pixel(square: str) -> tuple[int,int]:
     """Converts algebraic notation to pixel coordinates with a1 at bottom left"""
