@@ -91,9 +91,11 @@ def main():
                     }
                     valid_attacks = attack_functions[piece](square) #Since we are not specifying the color we always get "white"
                 if not on_piece[0] and clicked: # If we have clicked on a piece and now we are clicking on another square
-                    if (conversions.pixel_to_square(pygame.mouse.get_pos()) & valid_attacks):
+                    square_to = conversions.pixel_to_square(pygame.mouse.get_pos())
+                    if square_to & valid_attacks:
                         print(f"Move {piece} on {conversions.squares_from_rep(square)} to {conversions.squares_from_rep(conversions.pixel_to_square(pygame.mouse.get_pos()))}")
-
+                        b.unset_bit(square,piece) #take piece out of last square
+                        b.set_bit(square_to,piece) # set the piece into new square
                     clicked = False 
                 
             if event.type == pygame.MOUSEBUTTONUP:
@@ -101,7 +103,6 @@ def main():
                 draw_pieces(screen, bitboards, pieces.piece_images(pygame,SQUARE_SIZE))
                 v = ValidMoves(b)
                 pygame.display.flip()
-                #TODO: pygame.display.update(rectangles_to_update) 
     pygame.quit()
 
 if __name__ == '__main__':

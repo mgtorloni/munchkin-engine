@@ -19,8 +19,19 @@ class BoardRep:
             "rook": 0,
             "king": 0        
         }
+    
+    def unset_bit(self,square:int,piece:str,color = "white"):
+        if color.lower() == "white": 
+            self.bitboard_white[piece] &= ~square
+            return self.bitboard_white
+        elif color.lower() == "black":
+            self.bitboard_black[piece] &= ~square
+            return self.bitboard_black
+        else:
+            raise ValueError("Color must be either 'white' or 'black'")
+
     def set_bit(self,square:int, piece: str,color = "white") -> int:
-        """Change the position of a piece"""
+        """Set piece on a bit"""
         if color.lower() == "white": 
             self.bitboard_white[piece] |= square
             return self.bitboard_white
@@ -59,6 +70,7 @@ class ValidMoves:
         self.notGHFile = (self.notHFile & (~sum(1<< (6+8*i) for i in range(8))))&0xFFFFFFFFFFFFFFFF
         self.notAFile = ~sum(1 << (8 * i) for i in range(8))&0xFFFFFFFFFFFFFFFF
         self.notABFile = (self.notAFile & (~sum(1<< (1+8*i) for i in range(8))))&0xFFFFFFFFFFFFFFFF
+
     def knight_attacks(self,piece_bitboard:int,color:str="white")-> int:
         own_pieces = sum(self.board[color].values()) 
         knight_attacks = ((piece_bitboard >> 15) & self.notAFile) | ((piece_bitboard << 15) & self.notHFile) | \
