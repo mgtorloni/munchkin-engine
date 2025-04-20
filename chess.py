@@ -45,6 +45,7 @@ def draw_pieces(
                 bitboard &= bitboard - 1
 
 def mouse_on_piece(bitboard:dict[str,int]) -> tuple[bool,str]:
+    """ Returns if you have clicked on a piece, the square that piece is on and the piece as a tuple e.g. (True,clicked_square,piece)"""
     mouse_pos = pygame.mouse.get_pos()
     clicked_square = conversions.pixel_to_square(mouse_pos)
     for piece, bitboard in bitboard.items(): #for every piece and bitboard in the dictionary
@@ -72,12 +73,12 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                on_piece = mouse_on_piece(bitboards[0])#we are only checking for white pieces
+                on_piece = mouse_on_piece(bitboards[0]) #we are only checking for white pieces
 
-                if on_piece[0]:#if we have clicked on a piece
+                if on_piece[0]: #if we have clicked on a piece
                     clicked = True
                     square = on_piece[1] # we save that square 
-                    piece = on_piece[2]
+                    piece = on_piece[2] #we save that piece
 
                     v = ValidMoves(b)
                     attack_functions = {
@@ -89,11 +90,10 @@ def main():
                         "king": v.king_attacks
                     }
                     valid_attacks = attack_functions[piece](square) #Since we are not specifying the color we always get "white"
-                    print(valid_attacks)
-                #TODO: FIX THIS WHOLE THING WITH CLICKED AND VALID_ATTACKS, ITS ALL NOT WORKING  
                 if not on_piece[0] and clicked: # If we have clicked on a piece and now we are clicking on another square
-                    if conversions.pixel_to_square(pygame.mouse.get_pos()) == valid_attacks:
+                    if (conversions.pixel_to_square(pygame.mouse.get_pos()) & valid_attacks):
                         print(f"Move {piece} on {conversions.squares_from_rep(square)} to {conversions.squares_from_rep(conversions.pixel_to_square(pygame.mouse.get_pos()))}")
+
                     clicked = False 
                 
             if event.type == pygame.MOUSEBUTTONUP:

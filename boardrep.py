@@ -59,13 +59,13 @@ class ValidMoves:
         self.notGHFile = (self.notHFile & (~sum(1<< (6+8*i) for i in range(8))))&0xFFFFFFFFFFFFFFFF
         self.notAFile = ~sum(1 << (8 * i) for i in range(8))&0xFFFFFFFFFFFFFFFF
         self.notABFile = (self.notAFile & (~sum(1<< (1+8*i) for i in range(8))))&0xFFFFFFFFFFFFFFFF
-    #TODO: FUNCTION BELOW IS NOT WORKING PROPERLY
     def knight_attacks(self,piece_bitboard:int,color:str="white")-> int:
         own_pieces = sum(self.board[color].values()) 
         knight_attacks = ((piece_bitboard >> 15) & self.notAFile) | ((piece_bitboard << 15) & self.notHFile) | \
                 ((piece_bitboard << 10) & self.notABFile) | ((piece_bitboard >> 10) & self.notGHFile) | \
-                  ((piece_bitboard << 17) & self.notHFile) | ((piece_bitboard >> 17) & self.notAFile) | \
+                  ((piece_bitboard << 17) & self.notAFile) | ((piece_bitboard >> 17) & self.notHFile) | \
                   ((piece_bitboard << 6)  & self.notGHFile) | ((piece_bitboard >> 6)  & self.notABFile)
+
         #TODO: HARD CODE VALUES LIKE WE DID WITH BISHOPS,ROOKS AND QUEENS 
         knight_attacks &= ~own_pieces
         return knight_attacks
@@ -101,13 +101,19 @@ class ValidMoves:
             enemy_pieces = sum(self.board["black"].values()) 
             attacks = ((piece_bitboard<< 9) & self.notAFile) | ((piece_bitboard<< 7) & self.notHFile)
             attacks &=enemy_pieces
-            moves = (piece_bitboard<<8) &~ occupied_squares
+            if piece_bitboard in [256, 512, 1024, 2048, 4096, 8192, 16384, 32768]:
+                moves = ((piece_bitboard<<16)|(piece_bitboard<<8)) & ~occupied_squares #if we are in the initial squares we can move two
+            else:
+                moves = (piece_bitboard<<8) &~ occupied_squares
             return attacks|moves
         elif color=="black":  # Black pawns attack downward
             enemy_pieces = sum(self.board["white"].values()) 
             attacks = ((piece_bitboard>> 9) & self.notAFile) | ((piece_bitboard>> 7) & self.notHFile)
             attacks &=enemy_pieces
-            moves = (piece_bitboard>>8) & ~occupied_squares
+            if piece_bitboard in [281474976710656, 562949953421312, 1125899906842624, 2251799813685248, 4503599627370496, 9007199254740992, 18014398509481984, 36028797018963968]:
+                moves = ((piece_bitboard>>16)|(piece_bitboard>>8)) & ~occupied_squares #if we are in the initial squares we can move two
+            else:
+                moves = (piece_bitboard>>8) & ~occupied_squares
             return attacks|moves
 
     def hyperbola_quint(self,slider_bitboard:int,mask:int,color:str = "white")->int: #slider attacks formula
