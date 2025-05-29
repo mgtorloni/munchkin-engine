@@ -140,7 +140,7 @@ class ValidMoves:
         index = conversions.square_to_index(piece_bitboard)
         hmask = constants.ROOK_MASK_RANK[index]
         vmask = constants.ROOK_MASK_FILE[index]
-        rookAttacks = self.hyperbola_quint(index,hmask,color) | self.hyperbola_quint(index,vmask,color)
+        rookAttacks = self.hyperbola_quint(piece_bitboard,hmask,color) | self.hyperbola_quint(piece_bitboard,vmask,color)
         rookAttacks &= ~own_pieces 
         return rookAttacks
 
@@ -149,10 +149,9 @@ class ValidMoves:
         index = conversions.square_to_index(piece_bitboard)
         right_mask = constants.BISHOP_45DIAG[index]
         left_mask = constants.BISHOP_135DIAG[index]
-        bishopAttacks = self.hyperbola_quint(index,right_mask,color) | self.hyperbola_quint(index,left_mask,color)
+        bishopAttacks = self.hyperbola_quint(piece_bitboard,right_mask,color) | self.hyperbola_quint(piece_bitboard,left_mask,color)
         bishopAttacks&= ~own_pieces
         return bishopAttacks
 
     def queen_attacks(self,piece_bitboard:int,color:str = "white")->int:
-        index = conversions.square_to_index(piece_bitboard)
-        return self.rook_attacks(index,color)|self.bishop_attacks(index,color)
+        return self.rook_attacks(piece_bitboard,color)|self.bishop_attacks(piece_bitboard,color)
