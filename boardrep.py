@@ -60,6 +60,21 @@ class BoardRep:
         print(self.bitboard_black)
         return (self.bitboard_white,self.bitboard_black)
 
+    def capture_at(self, square: int, color: str) -> None:
+        """
+        Remove whatever *opponent* piece occupies `square`.
+        `color` is the *captured* piece’s colour.
+        """
+        bitboards = (
+            self.bitboard_white if color.lower() == "white"
+            else self.bitboard_black
+        )
+
+        for piece, bb in bitboards.items():
+            if bb & square:              # found the piece sitting on `square`
+                bitboards[piece] &= ~square
+                break 
+
 class ValidMoves:
     #TODO: REFACTOR THIS, WE GOT WAY TOO MANY OCCURRENCES OF "own_pieces" AND "occupied_squares", WE CAN'T
     #JUST PUT IT IN INIT BECAUSE IT HAS TO BE UPDATED AFTER EVERY MOVE AND THE IDEA IS CALLING
@@ -97,12 +112,7 @@ class ValidMoves:
                ((king_op>> 7) & self.notAFile) | ((king_op>> 9) & self.notHFile) |  \
                ((king_op<< 7) & self.notHFile) | ((king_op<< 9) & self.notAFile) |  \
                (king_op>> 8) | (king_op<< 8)
-        king_attacks &= ~(self.knight_attacks(board_op["knight"],opposite)|
-                          opposite_king_attacks|
-                          self.pawn_attacks(board_op["pawn"],opposite)|
-                          self.queen_attacks(board_op["queen"].bit_length() - 1,opposite)|
-                          self.bishop_attacks(board_op["bishop"].bit_length() - 1,opposite)|
-                          self.rook_attacks(board_op["rook"].bit_length() - 1,opposite))
+        
         king_attacks &= ~own_pieces 
         return king_attacks
 
@@ -111,19 +121,24 @@ class ValidMoves:
         occupied_squares = sum(self.board["white"].values())|sum(self.board["black"].values())
         if color == "white":
             enemy_pieces = sum(self.board["black"].values()) 
-            attacks = ((piece_bitboard<< 9) & self.notAFile) | ((piece_bitboard<< 7) & self.notHFile)
+            attacks = ((piece_bitboard << 9) & self.notHFile) | ((piece_bitboard<< 7) & self.notAFile)
             attacks &=enemy_pieces
             if piece_bitboard in [256, 512, 1024, 2048, 4096, 8192, 16384, 32768]:
-                moves = ((piece_bitboard<<16)|(piece_bitboard<<8)) & ~occupied_squares #if we are in the initial squares we can move two
+                one_step = (piece_bitboard<<8) & ~occupied_squares
+                two_step = (piece_bitboard<<16) & ~occupied_squares if one_step else 0
+                moves = one_step | two_step
             else:
-                moves = (piece_bitboard<<8) &~ occupied_squares
+                moves = (piece_bitboard<<8) & ~occupied_squares
+
             return attacks|moves
-        elif color=="black":  # Black pawns attack downward
+        elif color=="black": # Black pawns attack downward
             enemy_pieces = sum(self.board["white"].values()) 
-            attacks = ((piece_bitboard>> 9) & self.notAFile) | ((piece_bitboard>> 7) & self.notHFile)
+            attacks = ((piece_bitboard >> 9) & self.notHFile) | ((piece_bitboard>> 7) & self.notAFile)
             attacks &=enemy_pieces
             if piece_bitboard in [281474976710656, 562949953421312, 1125899906842624, 2251799813685248, 4503599627370496, 9007199254740992, 18014398509481984, 36028797018963968]:
-                moves = ((piece_bitboard>>16)|(piece_bitboard>>8)) & ~occupied_squares #if we are in the initial squares we can move two
+                one_step = (piece_bitboard>>8) & ~occupied_squares
+                two_step = (piece_bitboard>>16) & ~occupied_squares if one_step else 0
+                moves = one_step | two_step
             else:
                 moves = (piece_bitboard>>8) & ~occupied_squares
             return attacks|moves

@@ -57,6 +57,7 @@ def mouse_on_piece(bitboard:dict[str,int]) -> tuple[bool,str]:
 
 def make_move(board_rep, bitboards, colour=0):   
     colour_name = "white" if colour == 0 else "black"
+    opponent_colour = "black" if colour_name == "white" else "white"
 
     on_piece = mouse_on_piece(bitboards[colour])
     if not on_piece[0]:
@@ -81,6 +82,7 @@ def make_move(board_rep, bitboards, colour=0):
         if evt.type == pygame.MOUSEBUTTONUP:
             target = conversions.pixel_to_square(pygame.mouse.get_pos())
             if target & valid_attacks:
+                board_rep.capture_at(target, opponent_colour)
                 board_rep.unset_bit(clicked_square, piece, colour_name) #colour passed
                 board_rep.set_bit(target,piece, colour_name)
                 return True # legal move made
@@ -106,7 +108,6 @@ def main():
                 moved = make_move(b, (b.bitboard_white, b.bitboard_black), colour=turn)
                 if moved:
                     turn ^= 1 # flip after a legal move
-                    print("Turn is",turn)
 
 if __name__ == '__main__':
     main()
