@@ -84,6 +84,7 @@ def make_move(board_rep, bitboards, colour=0):
             if target & valid_attacks:
                 board_rep.capture_at(target, opponent_colour)
                 board_rep.unset_bit(clicked_square, piece, colour_name) #colour passed
+                print(colour_name, opponent_colour)
                 board_rep.set_bit(target,piece, colour_name)
                 return True # legal move made
             return False   # illegal square 
