@@ -76,18 +76,35 @@ def make_move(board_rep, bitboards, colour=0):
     }
 
     valid_attacks = attack_functions[piece](clicked_square)
+
     # wait for release for release of left click
     while True:
         evt = pygame.event.wait()
         if evt.type == pygame.MOUSEBUTTONUP:
-            target = conversions.pixel_to_square(pygame.mouse.get_pos())
-            if target & valid_attacks:
-                board_rep.capture_at(target, opponent_colour)
-                board_rep.unset_bit(clicked_square, piece, colour_name) #colour passed
-                print(colour_name, opponent_colour)
-                board_rep.set_bit(target,piece, colour_name)
-                return True # legal move made
-            return False   # illegal square 
+            target_square = conversions.pixel_to_square(pygame.mouse.get_pos())
+            if target_square & valid_attacks:
+                virtual_board = board_rep.copy()
+
+                virtual_board.capture_at(target_square,opponent_colour)
+                virtual_board.unset_bit(clicked_square,piece, colour_name)
+                virtual_board.set_bit(target_square,piece,colour_name)
+
+                virtual_validator = ValidMoves(virtual_board)
+                king_bitboard = virtual_board.bitboard_white["king"] if colour_name=="white" else virtual_board.bitboard_black["king"]
+
+                if not virtual_validator.is_square_attacked(king_bitboard, opponent_colour):
+                    #This is a legal move!!
+                    board_rep.capture_at(target_square,opponent_colour)
+                    board_rep.unset_bit(clicked_square,piece,colour_name)
+                    board_rep.set_bit(target_square,piece,colour_name)
+                    return True
+                else:
+                    #Here after the move the king is going to be left in check, so that is not a legal move
+                    return False
+            else:
+                #The target square is just not a valid destination for that piece
+                return False
+
 def main():
     b = BoardRep()
     bitboards = b.initial_position()

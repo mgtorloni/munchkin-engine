@@ -6,6 +6,7 @@ def generate_rook_mask(square: int) -> int:
     file = square % 8
     mask = 0
 
+    #Horizontal (Rank)
     for f in range(8):
         if f != file:
             mask|= 1 << (rank * 8 + f)
@@ -13,6 +14,12 @@ def generate_rook_mask(square: int) -> int:
     for r in range(8):
         if r != rank:
             mask|= 1 << (r * 8 + file)
+    """
+    
+    In reality this function was broken up in two functions, creating horizontal masks and vertical masks for the rooks
+    separately, this is important when passing it through the hyperbola quintessential formula
+
+    """
     return mask
 ROOK_MASKS = [generate_rook_mask(s) for s in range(64)]
 print(ROOK_MASKS)
@@ -48,6 +55,13 @@ def generate_bishop_mask(square: int) -> int:
         r += 1
         f -= 1
         mask |= 1 << (r * 8 + f)
+    """
+    
+    In reality this function was broken up in two functions, creating right diagonal masks (45 degrees) and left diagonal masks (135 degrees) for the bishops 
+    separately, this is important when passing it through the hyperbola quintessential formula
+
+    """
+
     return mask
 
 # Build a list of bishop masks for all 64 squares
