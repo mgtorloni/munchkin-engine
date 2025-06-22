@@ -31,7 +31,7 @@ def draw_pieces(
         for piece_name, bitboard in side_bitboards.items():
             while bitboard:
                 lsb = bitboard & -bitboard           # isolate lowest set bit
-                square_index = lsb.bit_length() - 1  # square [0..63]
+                square_index = lsb.bit_length() - 1  # take one away since we want [0..63] 
                 
                 # Compute x,y on display
                 x = (square_index % 8) * SQUARE_SIZE
@@ -55,7 +55,7 @@ def mouse_on_piece(bitboard:dict[str,int]) -> tuple[bool,str]:
             return (True, clicked_square, piece)
     return False, ""
 
-def make_move(board_rep, bitboards, colour=0):   
+def make_move(board_rep: BoardRep, bitboards:tuple, legal_moves:list,colour:int=0):   
     colour_name = "white" if colour == 0 else "black"
     opponent_colour = "black" if colour_name == "white" else "white"
 
@@ -63,55 +63,33 @@ def make_move(board_rep, bitboards, colour=0):
     if not on_piece[0]:
         return False
     clicked_square, piece = on_piece[1],on_piece[2]
-    v = ValidMoves(board_rep)
-
-    # bind the colour argument once, so later we only pass the square
-    attack_functions = {
-        "pawn":   partial(v.pawn_attacks,   color=colour_name),
-        "rook":   partial(v.rook_attacks,   color=colour_name),
-        "knight": partial(v.knight_attacks, color=colour_name),
-        "bishop": partial(v.bishop_attacks, color=colour_name),
-        "queen":  partial(v.queen_attacks,  color=colour_name),
-        "king":   partial(v.king_attacks,   color=colour_name),
-    }
-
-    valid_attacks = attack_functions[piece](clicked_square)
-
     # wait for release for release of left click
     while True:
         evt = pygame.event.wait()
         if evt.type == pygame.MOUSEBUTTONUP:
             target_square = conversions.pixel_to_square(pygame.mouse.get_pos())
-            if target_square & valid_attacks:
-                virtual_board = board_rep.copy()
-
-                virtual_board.capture_at(target_square,opponent_colour)
-                virtual_board.unset_bit(clicked_square,piece, colour_name)
-                virtual_board.set_bit(target_square,piece,colour_name)
-
-                virtual_validator = ValidMoves(virtual_board)
-                king_bitboard = virtual_board.bitboard_white["king"] if colour_name=="white" else virtual_board.bitboard_black["king"]
-
-                if not virtual_validator.is_square_attacked(king_bitboard, opponent_colour):
-                    #This is a legal move!!
-                    board_rep.capture_at(target_square,opponent_colour)
-                    board_rep.unset_bit(clicked_square,piece,colour_name)
-                    board_rep.set_bit(target_square,piece,colour_name)
-                    return True
-                else:
-                    #Here after the move the king is going to be left in check, so that is not a legal move
-                    return False
+            print(target_square)
+            if (clicked_square,target_square) in legal_moves:
+                board_rep.capture_at(target_square,opponent_colour)
+                board_rep.unset_bit(clicked_square,piece,colour_name)
+                board_rep.set_bit(target_square, piece, colour_name)
+                return True
             else:
-                #The target square is just not a valid destination for that piece
                 return False
-
+                
+            
 def main():
     b = BoardRep()
     bitboards = b.initial_position()
     WHITE_IMGS, BLACK_IMGS = pieces.piece_images(pygame, constants.SQUARE_SIZE)
 
     running, turn = True, 0  # 0 = white, 1 = black
+    game_over = False
     clock = pygame.time.Clock()
+
+    #generate all legal moves for white's first turn
+    validator = ValidMoves(b)
+    current_legal_moves = validator.generate_all_legal_moves("white")
 
     while running:
         clock.tick(60)
@@ -119,13 +97,36 @@ def main():
         draw_pieces(screen, (b.bitboard_white, b.bitboard_black), (WHITE_IMGS, BLACK_IMGS))
         pygame.display.flip()
 
+        if game_over: # if the game is over I still want to be able to see the board
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False #quit only after the quit event
+            continue
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                moved = make_move(b, (b.bitboard_white, b.bitboard_black), colour=turn)
+            if event.type == pygame.MOUSEBUTTONDOWN: 
+                moved = make_move(b, (b.bitboard_white, b.bitboard_black),legal_moves=current_legal_moves, colour=turn)
+
                 if moved:
                     turn ^= 1 # flip after a legal move
+                    
+                    current_player_colour = "white" if turn==0 else "black"
+                    opponent_colour = "black" if turn==0 else "white"
+                    
+                    #generate all new legal moves
+                    validator = ValidMoves(b)
+                    current_legal_moves = validator.generate_all_legal_moves(current_player_colour)
+                    
+                    if not current_legal_moves:
+                        king_position = b.bitboard_white["king"] if current_player_colour == "white" else b.bitboard_black["king"]
+                        if validator.is_square_attacked(king_position,opponent_colour):
+                            print(f"CHECKMATE! {opponent_colour.upper()} wins!")
+                        else:
+                            print("STALEMATE! It's a draw.")
+
+                        game_over=True
 
 if __name__ == '__main__':
     main()
