@@ -19,12 +19,24 @@ class BoardRep:
             "rook": 0,
             "king": 0        
         }
+
+        self.white_kingside_ctl = True
+        self.white_queenside_ctl = True
+        self.black_kingside_ctl = True
+        self.black_queenside_ctl = True
     
     def copy(self):
         """Creates a copy of the BoardRep object."""
         new_rep = BoardRep()
         new_rep.bitboard_white = self.bitboard_white.copy()
         new_rep.bitboard_black = self.bitboard_black.copy()
+        
+        new_rep.white_kingside_ctl = self.white_kingside_ctl
+        new_rep.white_queenside_ctl = self.white_queenside_ctl
+        
+        new_rep.black_kingside_ctl = self.black_kingside_ctl
+        new_rep.black_queenside_ctl = self.black_queenside_ctl
+        
         return new_rep
 
     def unset_bit(self,square:int,piece:str,colour = "white"):
@@ -61,6 +73,11 @@ class BoardRep:
         
         self.bitboard_white = constants.INITIAL_WHITE
         self.bitboard_black = constants.INITIAL_BLACK 
+
+        self.white_kingside_ctl = True
+        self.white_queenside_ctl = True
+        self.black_kingside_ctl = True
+        self.black_queenside_ctl = True
         return (self.bitboard_white,self.bitboard_black)
 
     def capture_at(self,square: int, colour:str):
@@ -72,42 +89,42 @@ class BoardRep:
                 break
 
 class ValidMoves:
-    #TODO: REFACTOR THIS, WE GOT WAY TOO MANY OCCURRENCES OF "own_pieces" AND "occupied_squares", WE CAN'T
-    #JUST PUT IT IN INIT BECAUSE IT HAS TO BE UPDATED AFTER EVERY MOVE AND THE IDEA IS CALLING
-    #ONE OF THE FUNCTIONS DEPENDING ON WHAT PIECE WE CLICK ON
     def __init__(self,boardrep: BoardRep):
         self.board_rep = boardrep
         self.board = {"white":self.board_rep.bitboard_white,"black":self.board_rep.bitboard_black}
-        self.notHFile = ~sum(1 << (7 + 8 * i) for i in range(8))&0xFFFFFFFFFFFFFFFF
-        self.notGHFile = (self.notHFile & (~sum(1<< (6+8*i) for i in range(8))))&0xFFFFFFFFFFFFFFFF
-        self.notAFile = ~sum(1 << (8 * i) for i in range(8))&0xFFFFFFFFFFFFFFFF
-        self.notABFile = (self.notAFile & (~sum(1<< (1+8*i) for i in range(8))))&0xFFFFFFFFFFFFFFFF
-        self.rank1 = 0x00000000000000FF
-        self.rank8 = 0xFF00000000000000
+
+        self.white_pieces = sum(self.board["white"].values())
+        self.black_pieces = sum(self.board["black"].values())
+        self.occupied_squares = self.white_pieces|self.black_pieces
+
+        self.notHFile = ~sum(1 << (7 + 8 * i) for i in range(8))
+        self.notGHFile = (self.notHFile & (~sum(1<< (6+8*i) for i in range(8))))
+        self.notAFile = ~sum(1 << (8 * i) for i in range(8))
+        self.notABFile = (self.notAFile & (~sum(1<< (1+8*i) for i in range(8))))
 
     def king_attacks(self,king_bitboard:int,colour:str="white")->int:
         """This returns only the raw attacks, see is_square_attacked for checking if the king is in check"""
-        own_pieces = sum(self.board[colour].values())
+        own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
+        attacks = ((king_bitboard >> 1) & self.notHFile) | ((king_bitboard << 1) & self.notAFile) |  \
+           ((king_bitboard >> 7) & self.notAFile) | ((king_bitboard >> 9) & self.notHFile) |  \
+           ((king_bitboard << 7) & self.notHFile) | ((king_bitboard << 9) & self.notAFile) |  \
+           (king_bitboard >> 8) | (king_bitboard << 8)
         
-        attacks = 0
-        # North
-        attacks |= (king_bitboard & ~self.rank8) << 8
-        # South
-        attacks |= (king_bitboard & ~self.rank1) >> 8
-        # East
-        attacks |= (king_bitboard & ~self.notHFile) << 1  # Note: notHFile is a mask of squares NOT on the H file. To get only H file, we invert it.
-        # West
-        attacks |= (king_bitboard & ~self.notAFile) >> 1
-        # North-East
-        attacks |= (king_bitboard & ~self.rank8 & ~self.notHFile) << 9
-        # North-West
-        attacks |= (king_bitboard & ~self.rank8 & ~self.notAFile) << 7
-        # South-East
-        attacks |= (king_bitboard & ~self.rank1 & ~self.notHFile) >> 7
-        # South-West
-        attacks |= (king_bitboard & ~self.rank1 & ~self.notAFile) >> 9
+        # Add a 64-bit mask to discard any "off-board" bits before returning
+        return attacks & 0xFFFFFFFFFFFFFFFF & ~own_pieces
 
-        return attacks & ~own_pieces
+    """
+    def castling_right(self,colour:str="white")->bool:
+        attacker_colour = "black" if colour == "white" else "white"  
+        castling_queen = [] #castling queen-side squares
+        castling_king = [] #castling king-side squares
+
+        #if any square on the queen/king side is attacked return false
+        queen_side = any(self.is_square_attacked(square, attacker_colour) for square in castling_queen) 
+        king_side = any(self.is_square_attacked(square, attacker_colour) for square in castling_king) 
+        if self.occupied_squares & castling_queen:
+    """  
+
     def is_square_attacked(self,square_bb:int,attacker_colour:str) ->bool:
         """Checks if a (single) square is under attack"""
         attacker_board = self.board[attacker_colour]
@@ -144,7 +161,7 @@ class ValidMoves:
     def knight_attacks(self,piece_bitboard:int,colour:str="white")-> int:
         """Finds which square a knight is attacking"""
         
-        own_pieces = sum(self.board[colour].values()) 
+        own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
         knight_attacks = ((piece_bitboard >> 15) & self.notAFile) | ((piece_bitboard << 15) & self.notHFile) | \
                 ((piece_bitboard << 10) & self.notABFile) | ((piece_bitboard >> 10) & self.notGHFile) | \
                   ((piece_bitboard << 17) & self.notAFile) | ((piece_bitboard >> 17) & self.notHFile) | \
@@ -156,10 +173,7 @@ class ValidMoves:
     
     def pawn_attacks(self,pawn_bitboard:int,colour:str="white")->int:
         """Finds which squares a pawn is attacking"""
-
-        #no need for own_pieces here since the pawn stops no matter if it is your own or the enemy's pieces
-        occupied_squares = sum(self.board["white"].values())|sum(self.board["black"].values())
-
+        
         if colour == "white":
             enemy_pieces = sum(self.board["black"].values()) #get a single bitboard to locate where all pieces are 
 
@@ -167,9 +181,9 @@ class ValidMoves:
             attacks &= enemy_pieces #there need to be a piece there for a pawn to move there
 
             if pawn_bitboard in [256, 512, 1024, 2048, 4096, 8192, 16384, 32768]:
-                moves = ((pawn_bitboard<<16)|(pawn_bitboard<<8)) & ~occupied_squares #if we are in the initial squares we can move two
+                moves = ((pawn_bitboard<<16)|(pawn_bitboard<<8)) & ~self.occupied_squares #if we are in the initial squares we can move two
             else:
-                moves = (pawn_bitboard<<8) &~ occupied_squares
+                moves = (pawn_bitboard<<8) &~ self.occupied_squares
             return attacks|moves
 
         elif colour=="black":  # black pawns attack downward
@@ -179,20 +193,16 @@ class ValidMoves:
             attacks &= enemy_pieces #there need to be a piece there for a pawn to move there
 
             if pawn_bitboard in [281474976710656, 562949953421312, 1125899906842624, 2251799813685248, 4503599627370496, 9007199254740992, 18014398509481984, 36028797018963968]:
-                moves = ((pawn_bitboard>>16)|(pawn_bitboard>>8)) & ~occupied_squares #if we are in the initial squares we can move two
+                moves = ((pawn_bitboard>>16)|(pawn_bitboard>>8)) & ~self.occupied_squares #if we are in the initial squares we can move two
             else:
-                moves = (pawn_bitboard>>8) & ~occupied_squares
+                moves = (pawn_bitboard>>8) & ~self.occupied_squares
             return attacks|moves #combine the attacks and moves
 
     def hyperbola_quint(self,slider_bitboard:int,mask:int,colour:str = "white")->int: #slider attacks formula
         """Uses the hyperbola quintessential formula to calculate how the slider attacks stop at a piece on their way"""
-
-        #no need for own_pieces here since the slider stops no matter if it is your own or the enemy's pieces
-        occupied_squares = sum(self.board["white"].values())|sum(self.board["black"].values()) #all occupied squares
-
         #formula : ((o&m)-2s)^reverse(reverse(o&m)-2reverse(s))&m
-        sliderAttacks = (((occupied_squares & mask) - (slider_bitboard<< 1)) ^
-                        conversions.reverse_bitboard(conversions.reverse_bitboard(occupied_squares & mask) - (conversions.reverse_bitboard(slider_bitboard) << 1))) & mask
+        sliderAttacks = (((self.occupied_squares & mask) - (slider_bitboard<< 1)) ^
+                        conversions.reverse_bitboard(conversions.reverse_bitboard(self.occupied_squares & mask) - (conversions.reverse_bitboard(slider_bitboard) << 1))) & mask
 
         return sliderAttacks
 

@@ -61,21 +61,20 @@ def make_move(board_rep: BoardRep, bitboards:tuple, legal_moves:list,colour:int=
 
     on_piece = mouse_on_piece(bitboards[colour])
     if not on_piece[0]:
-        return False
+        return None
     clicked_square, piece = on_piece[1],on_piece[2]
     # wait for release for release of left click
     while True:
         evt = pygame.event.wait()
         if evt.type == pygame.MOUSEBUTTONUP:
             target_square = conversions.pixel_to_square(pygame.mouse.get_pos())
-            print(target_square)
             if (clicked_square,target_square) in legal_moves:
                 board_rep.capture_at(target_square,opponent_colour)
                 board_rep.unset_bit(clicked_square,piece,colour_name)
                 board_rep.set_bit(target_square, piece, colour_name)
-                return True
+                return (piece,clicked_square) 
             else:
-                return False
+                return None 
                 
             
 def main():
@@ -107,9 +106,10 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN: 
-                moved = make_move(b, (b.bitboard_white, b.bitboard_black),legal_moves=current_legal_moves, colour=turn)
+                move_info = make_move(b, (b.bitboard_white, b.bitboard_black),legal_moves=current_legal_moves, colour=turn)
 
-                if moved:
+                if move_info:
+                    moved_piece, start_square = move_info
                     turn ^= 1 # flip after a legal move
                     
                     current_player_colour = "white" if turn==0 else "black"
@@ -123,6 +123,7 @@ def main():
                         king_position = b.bitboard_white["king"] if current_player_colour == "white" else b.bitboard_black["king"]
                         if validator.is_square_attacked(king_position,opponent_colour):
                             print(f"CHECKMATE! {opponent_colour.upper()} wins!")
+
                         else:
                             print("STALEMATE! It's a draw.")
 
