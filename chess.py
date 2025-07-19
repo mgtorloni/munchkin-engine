@@ -155,7 +155,7 @@ def main():
                     validator.castling_white = castling_white 
                     validator.castling_black = castling_black
                     current_legal_moves = validator.generate_all_legal_moves(next_player_colour)
-                    print(current_legal_moves)
+                    #print(current_legal_moves)
                     if not current_legal_moves:
                         king_position = b.bitboard_white["king"] if current_player_colour == "white" else b.bitboard_black["king"]
                         if validator.is_square_attacked(king_position,opponent_colour):

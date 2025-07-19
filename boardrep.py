@@ -46,6 +46,44 @@ class BoardRep:
         else:
             raise ValueError("Color must be either 'white' or 'black'")
 
+    def make_move(self, move: tuple, colour: str):
+        """
+        Applies a move to the board and returns a state dictionary for unmaking the move.
+        """
+        source_square, target_square = move
+        opponent_colour = "black" if colour == "white" else "white"
+
+        current_player_board = self.bitboard_white if colour == "white" else self.bitboard_black
+        opponent_board = self.bitboard_black if colour == "white" else self.bitboard_white
+
+        moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square), None)
+        captured_piece = next((p for p, bb in opponent_board.items() if bb & target_square), None)
+
+        unmake_info = {
+            "move": move, "moved_piece": moved_piece, "colour": colour,
+            "captured_piece": captured_piece
+        }
+
+        self.unset_bit(source_square, moved_piece, colour)
+        if captured_piece:
+            self.unset_bit(target_square, captured_piece, opponent_colour)
+        self.set_bit(target_square, moved_piece, colour)
+        return unmake_info
+
+    def unmake_move(self, unmake_info: dict):
+        """
+        Reverts a move using the state dictionary from make_move.
+        """
+        source_square, target_square = unmake_info["move"]
+        moved_piece, colour = unmake_info["moved_piece"], unmake_info["colour"]
+        captured_piece = unmake_info["captured_piece"]
+        opponent_colour = "black" if colour == "white" else "white"
+
+        self.set_bit(source_square, moved_piece, colour)
+        self.unset_bit(target_square, moved_piece, colour)
+        if captured_piece:
+            self.set_bit(target_square, captured_piece, opponent_colour)
+
 
     def full_bitboard(self):
         """Returns where all of the pieces are"""
@@ -242,6 +280,12 @@ class ValidMoves:
     def queen_attacks(self,queen_bitboard:int,colour:str = "white")->int: #queens are just a bishop and a rook in one piece
         return self.rook_attacks(queen_bitboard,colour)|self.bishop_attacks(queen_bitboard,colour) 
 
+    def rebuild_state(self):
+        """Rebuilds the validator's internal state from the board representation."""
+        self.white_pieces = sum(self.board["white"].values())
+        self.black_pieces = sum(self.board["black"].values())
+        self.occupied_squares = self.white_pieces | self.black_pieces
+
     def generate_all_legal_moves(self,colour:str)->list:
         """Generates a list of all legal moves for a given colour."""
         legal_moves = []
@@ -276,17 +320,16 @@ class ValidMoves:
                 target_squares = pseudo_legal_moves
                 while target_squares:
                     target = target_squares & -target_squares
+                    unmake_info = self.board_rep.make_move((source, target), colour)
+                    self.rebuild_state() # Update validator state to match temp board
 
-                    virtual_board = self.board_rep.copy()
-                    virtual_board.capture_at(target, opponent_colour)
-                    virtual_board.unset_bit(source, piece,colour)
-                    virtual_board.set_bit(target,piece,colour)
+                    king_bb = self.board_rep.bitboard_white["king"] if colour == "white" else self.board_rep.bitboard_black["king"]
+                    if not self.is_square_attacked(king_bb, opponent_colour):
+                        legal_moves.append((source, target))
 
-                    virtual_validator = ValidMoves(virtual_board)
-                    king_bitboard = virtual_board.bitboard_white["king"] if colour=="white" else virtual_board.bitboard_black["king"]
-                    print(f"square_to_index result: {conversions.square_to_index(source)}")
-                    if not virtual_validator.is_square_attacked(king_bitboard,opponent_colour):
-                        legal_moves.append((source,target))
+                    # Restore the board and validator to their original state
+                    self.board_rep.unmake_move(unmake_info)
+                    self.rebuild_state()
 
                     target_squares &= target_squares -1 #move to the next target square
                 #print(target_squares)
