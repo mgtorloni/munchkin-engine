@@ -69,6 +69,20 @@ def make_move(board_rep: BoardRep, bitboards:tuple, legal_moves:list,colour:int=
         if evt.type == pygame.MOUSEBUTTONUP:
             target_square = conversions.pixel_to_square(pygame.mouse.get_pos())
             if (clicked_square,target_square) in legal_moves:
+                is_castle = piece == 'king' and abs(conversions.square_to_index(clicked_square) - conversions.square_to_index(target_square)) == 2
+                if is_castle:
+                    # King-side castle (king moves right)
+                    if target_square > clicked_square:
+                        rook_start_square = 1 << (conversions.square_to_index(target_square) + 1)
+                        rook_end_square = 1 << (conversions.square_to_index(target_square) - 1)
+                    # Queen-side castle (king moves left)
+                    else:
+                        rook_start_square = 1 << (conversions.square_to_index(target_square) - 2)
+                        rook_end_square = 1 << (conversions.square_to_index(target_square) + 1)
+
+                    # Move the rook
+                    board_rep.unset_bit(rook_start_square, 'rook', colour_name)
+                    board_rep.set_bit(rook_end_square, 'rook', colour_name)
                 board_rep.capture_at(target_square,opponent_colour)
                 board_rep.unset_bit(clicked_square,piece,colour_name)
                 board_rep.set_bit(target_square, piece, colour_name)
@@ -88,6 +102,11 @@ def main():
 
     #generate all legal moves for white's first turn
     validator = ValidMoves(b)
+    castling_white = [False,False,False]
+    castling_black = [False,False,False]
+    validator.castling_white = castling_white  
+    validator.castling_black = castling_black 
+
     current_legal_moves = validator.generate_all_legal_moves("white")
 
     while running:
@@ -106,19 +125,37 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN: 
+                current_player_colour = "white" if turn==0 else "black"
                 move_info = make_move(b, (b.bitboard_white, b.bitboard_black),legal_moves=current_legal_moves, colour=turn)
-
                 if move_info:
                     moved_piece, start_square = move_info
-                    turn ^= 1 # flip after a legal move
-                    
-                    current_player_colour = "white" if turn==0 else "black"
-                    opponent_colour = "black" if turn==0 else "white"
-                    
                     #generate all new legal moves
+                    if moved_piece == "king":
+                        if current_player_colour == "white":
+                            castling_white[0] = True
+                        if current_player_colour == "black": 
+                            castling_black[0] = True
+
+                    if moved_piece == "rook":
+                        if current_player_colour == "white":
+                            if start_square == 1: #queen-side
+                                castling_white[2] = True
+                            if start_square == 1<<7: #king-side
+                                castling_white[1] = True
+                        if current_player_colour == "black": 
+                            if start_square == 1<<56: #queen-side
+                                castling_black[2] = True
+                            if start_square == 1<<63: #king-side
+                                castling_black[1] = True
+
+                    turn ^= 1 # flip after a legal move
+                    next_player_colour = "white" if turn ==0 else "black"
+                    opponent_colour = "black" if turn==0 else "white"
                     validator = ValidMoves(b)
-                    current_legal_moves = validator.generate_all_legal_moves(current_player_colour)
-                    
+                    validator.castling_white = castling_white 
+                    validator.castling_black = castling_black
+                    current_legal_moves = validator.generate_all_legal_moves(next_player_colour)
+                    print(current_legal_moves)
                     if not current_legal_moves:
                         king_position = b.bitboard_white["king"] if current_player_colour == "white" else b.bitboard_black["king"]
                         if validator.is_square_attacked(king_position,opponent_colour):

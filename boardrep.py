@@ -19,24 +19,12 @@ class BoardRep:
             "rook": 0,
             "king": 0        
         }
-
-        self.white_kingside_ctl = True
-        self.white_queenside_ctl = True
-        self.black_kingside_ctl = True
-        self.black_queenside_ctl = True
     
     def copy(self):
         """Creates a copy of the BoardRep object."""
         new_rep = BoardRep()
         new_rep.bitboard_white = self.bitboard_white.copy()
         new_rep.bitboard_black = self.bitboard_black.copy()
-        
-        new_rep.white_kingside_ctl = self.white_kingside_ctl
-        new_rep.white_queenside_ctl = self.white_queenside_ctl
-        
-        new_rep.black_kingside_ctl = self.black_kingside_ctl
-        new_rep.black_queenside_ctl = self.black_queenside_ctl
-        
         return new_rep
 
     def unset_bit(self,square:int,piece:str,colour = "white"):
@@ -74,10 +62,6 @@ class BoardRep:
         self.bitboard_white = constants.INITIAL_WHITE
         self.bitboard_black = constants.INITIAL_BLACK 
 
-        self.white_kingside_ctl = True
-        self.white_queenside_ctl = True
-        self.black_kingside_ctl = True
-        self.black_queenside_ctl = True
         return (self.bitboard_white,self.bitboard_black)
 
     def capture_at(self,square: int, colour:str):
@@ -102,6 +86,10 @@ class ValidMoves:
         self.notAFile = ~sum(1 << (8 * i) for i in range(8))
         self.notABFile = (self.notAFile & (~sum(1<< (1+8*i) for i in range(8))))
 
+        #[King moved,Rook king-side moved, Rook queen-side moved] 
+        self.castling_white = [False,False,False]
+        self.castling_black = [False,False,False]
+
     def king_attacks(self,king_bitboard:int,colour:str="white")->int:
         """This returns only the raw attacks, see is_square_attacked for checking if the king is in check"""
         own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
@@ -113,17 +101,33 @@ class ValidMoves:
         # Add a 64-bit mask to discard any "off-board" bits before returning
         return attacks & 0xFFFFFFFFFFFFFFFF & ~own_pieces
 
-    """
-    def castling_right(self,colour:str="white")->bool:
+    def can_castle(self,colour:str="white")->(bool,bool):
+        """Returns a tuple showing if that colour can castle king-side or queen-side""" 
         attacker_colour = "black" if colour == "white" else "white"  
-        castling_queen = [] #castling queen-side squares
-        castling_king = [] #castling king-side squares
-
+        castling_queen = 1<<3|1<<2 if colour=="white" else 1<<59|1<<58 #king path queen-side squares
+        castling_king = 1<<5|1<<6 if colour =="white" else 1<<61|1<<62 #king path king-side squares
+        sqrs_att_queen_sd = False
+        sqrs_att_king_sd = False 
+        result = (True,True)
+        has_moved = self.castling_white if colour == "white" else self.castling_black
+        print(f"Has anything moved? {has_moved}")
         #if any square on the queen/king side is attacked return false
-        queen_side = any(self.is_square_attacked(square, attacker_colour) for square in castling_queen) 
-        king_side = any(self.is_square_attacked(square, attacker_colour) for square in castling_king) 
-        if self.occupied_squares & castling_queen:
-    """  
+        if colour == "white":
+            sqrs_att_queen_sd = any(self.is_square_attacked(square, attacker_colour) for square in [1<<4,1<<3,1<<2]) 
+            sqrs_att_king_sd = any(self.is_square_attacked(square, attacker_colour) for square in [1<<4,1<<5,1<<6]) 
+        if colour == "black":
+            sqrs_att_queen_sd = any(self.is_square_attacked(square, attacker_colour) for square in [1<<60,1<<59,1<<58]) 
+            sqrs_att_king_sd = any(self.is_square_attacked(square, attacker_colour) for square in [1<<60,1<<61,1<<62]) 
+
+        #If the king has moved
+        if has_moved[0]: result = (False,False)
+        #If there is a piece in the way or any of the squares in the kings path is attacked or the rook on that side has moved return False on that side 
+        if self.occupied_squares & castling_king or sqrs_att_king_sd or has_moved[1]:
+            result = (False,result[1])
+        #If there is a piece in the way or any of the squares in the kings path is attacked or the rook on that side has moved return False on that side 
+        if self.occupied_squares & castling_queen or sqrs_att_queen_sd or has_moved[2]:
+            result = (result[0],False) 
+        return result
 
     def is_square_attacked(self,square_bb:int,attacker_colour:str) ->bool:
         """Checks if a (single) square is under attack"""
@@ -241,11 +245,25 @@ class ValidMoves:
     def generate_all_legal_moves(self,colour:str)->list:
         """Generates a list of all legal moves for a given colour."""
         legal_moves = []
+        castling_rights = self.can_castle(colour) 
+        print(castling_rights)
         opponent_colour = "black" if colour == "white" else "white"
         attack_functions = {
                 "pawn":self.pawn_attacks,"rook":self.rook_attacks,
                 "knight":self.knight_attacks,"bishop":self.bishop_attacks,
                 "queen":self.queen_attacks,"king":self.king_attacks}
+
+        if castling_rights[0]: # King-side
+            if colour == "white":
+                legal_moves.append((1<<4, 1<<6))
+            else: # Black
+                legal_moves.append((1<<60, 1<<62))
+
+        if castling_rights[1]: # Queen-side
+            if colour == "white":
+                legal_moves.append((1<<4, 1<<2))
+            else: # Black
+                legal_moves.append((1<<60, 1<<58))
 
         for piece,bitboard in self.board[colour].items():
             source_squares = bitboard
