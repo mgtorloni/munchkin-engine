@@ -53,44 +53,70 @@ def mouse_on_piece(bitboard:dict[str,int]) -> tuple[bool,str]:
     for piece, bitboard in bitboard.items(): #for every piece and bitboard in the dictionary
         if clicked_square & bitboard: #if the clicked_square & bitboard != 0 then we have clicked on a piece
             return (True, clicked_square, piece)
-    return False, ""
+    return False, 0, ""
 
-def make_move(board_rep: BoardRep, bitboards:tuple, legal_moves:list,colour:int=0):   
+def make_move(board_rep: BoardRep, bitboards: tuple, legal_moves: list, colour: int = 0, castling_tracker: tuple = None,en_passant_square:int =0):   
     colour_name = "white" if colour == 0 else "black"
     opponent_colour = "black" if colour_name == "white" else "white"
 
     on_piece = mouse_on_piece(bitboards[colour])
     if not on_piece[0]:
-        return None
-    clicked_square, piece = on_piece[1],on_piece[2]
-    # wait for release for release of left click
+        return {'success':False, 'en_passant_square':0} 
+    clicked_square, piece = on_piece[1], on_piece[2]
+    
+    # wait for release of left click
     while True:
         evt = pygame.event.wait()
         if evt.type == pygame.MOUSEBUTTONUP:
             target_square = conversions.pixel_to_square(pygame.mouse.get_pos())
-            if (clicked_square,target_square) in legal_moves:
+            if (clicked_square, target_square) in legal_moves:
+                new_en_passant_square =0
+                castling_white, castling_black = castling_tracker
+                if piece=="pawn" and abs(conversions.square_to_index(clicked_square)-conversions.square_to_index(target_square)) == 16:
+                    new_en_passant_square = (target_square>>8) if colour_name == "white" else (target_square<<8)
+                if piece == 'pawn' and target_square == en_passant_square:
+                    # The captured pawn is behind the target square.
+                    captured_pawn_square = (en_passant_square >> 8) if colour_name == "white" else (en_passant_square << 8)
+                    board_rep.unset_bit(captured_pawn_square, 'pawn', opponent_colour)
+
+                # Handle castling rights updates
+                if piece == 'king':
+                    if colour_name == "white": castling_white[0] = True
+                    else: castling_black[0] = True
+                
+                if piece == 'rook':
+                    if colour_name == "white":
+                        if clicked_square == 1: castling_white[2] = True      # queen-side
+                        elif clicked_square == 1 << 7: castling_white[1] = True # king-side
+                    else:
+                        if clicked_square == 1 << 56: castling_black[2] = True # queen-side
+                        elif clicked_square == 1 << 63: castling_black[1] = True # king-side
+                # check if the move is a castle to move the rook
                 is_castle = piece == 'king' and abs(conversions.square_to_index(clicked_square) - conversions.square_to_index(target_square)) == 2
                 if is_castle:
-                    # King-side castle (king moves right)
+                    # king-side castle
                     if target_square > clicked_square:
                         rook_start_square = 1 << (conversions.square_to_index(target_square) + 1)
                         rook_end_square = 1 << (conversions.square_to_index(target_square) - 1)
-                    # Queen-side castle (king moves left)
+                        if colour_name == "white": castling_white[1] = True
+                        else: castling_black[1] = True
+                    # Queen-side castle
                     else:
                         rook_start_square = 1 << (conversions.square_to_index(target_square) - 2)
                         rook_end_square = 1 << (conversions.square_to_index(target_square) + 1)
+                        if colour_name == "white": castling_white[2] = True
+                        else: castling_black[2] = True
 
-                    # Move the rook
+                    #move the rook for castling
                     board_rep.unset_bit(rook_start_square, 'rook', colour_name)
                     board_rep.set_bit(rook_end_square, 'rook', colour_name)
-                board_rep.capture_at(target_square,opponent_colour)
-                board_rep.unset_bit(clicked_square,piece,colour_name)
+
+                board_rep.capture_at(target_square, opponent_colour)
+                board_rep.unset_bit(clicked_square, piece, colour_name)
                 board_rep.set_bit(target_square, piece, colour_name)
-                return (piece,clicked_square) 
+                return {"success":True, "en_passant_square":new_en_passant_square}
             else:
-                return None 
-                
-            
+                return {"success":False, "en_passant_square":0}
 def main():
     b = BoardRep()
     bitboards = b.initial_position()
@@ -99,9 +125,10 @@ def main():
     running, turn = True, 0  # 0 = white, 1 = black
     game_over = False
     clock = pygame.time.Clock()
+    en_passant_square = 0
 
     #generate all legal moves for white's first turn
-    validator = ValidMoves(b)
+    validator = ValidMoves(b, en_passant_square=en_passant_square)
     castling_white = [False,False,False]
     castling_black = [False,False,False]
     validator.castling_white = castling_white  
@@ -126,45 +153,36 @@ def main():
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN: 
                 current_player_colour = "white" if turn==0 else "black"
-                move_info = make_move(b, (b.bitboard_white, b.bitboard_black),legal_moves=current_legal_moves, colour=turn)
-                if move_info:
-                    moved_piece, start_square = move_info
-                    #generate all new legal moves
-                    if moved_piece == "king":
-                        if current_player_colour == "white":
-                            castling_white[0] = True
-                        if current_player_colour == "black": 
-                            castling_black[0] = True
+                
+                # vvv MODIFY THE CALL AND THE LOGIC AFTERWARD vvv
+                move_info = make_move(
+                    b, 
+                    (b.bitboard_white, b.bitboard_black),
+                    legal_moves=current_legal_moves, 
+                    colour=turn,
+                    castling_tracker=(castling_white, castling_black),
+                    en_passant_square = en_passant_square
+                )
 
-                    if moved_piece == "rook":
-                        if current_player_colour == "white":
-                            if start_square == 1: #queen-side
-                                castling_white[2] = True
-                            if start_square == 1<<7: #king-side
-                                castling_white[1] = True
-                        if current_player_colour == "black": 
-                            if start_square == 1<<56: #queen-side
-                                castling_black[2] = True
-                            if start_square == 1<<63: #king-side
-                                castling_black[1] = True
-
+                if move_info["success"]:
+                    en_passant_square = move_info["en_passant_square"]
                     turn ^= 1 # flip after a legal move
-                    next_player_colour = "white" if turn ==0 else "black"
-                    opponent_colour = "black" if turn==0 else "white"
-                    validator = ValidMoves(b)
+                    next_player_colour = "white" if turn == 0 else "black"
+                    opponent_colour = "black" if turn == 0 else "white"
+                    
+                    # Regenerate validator and moves for the next turn
+                    validator = ValidMoves(b, en_passant_square=en_passant_square)
                     validator.castling_white = castling_white 
                     validator.castling_black = castling_black
                     current_legal_moves = validator.generate_all_legal_moves(next_player_colour)
-                    #print(current_legal_moves)
+                    
                     if not current_legal_moves:
                         king_position = b.bitboard_white["king"] if current_player_colour == "white" else b.bitboard_black["king"]
-                        if validator.is_square_attacked(king_position,opponent_colour):
+                        if validator.is_square_attacked(king_position, opponent_colour):
                             print(f"CHECKMATE! {opponent_colour.upper()} wins!")
-
                         else:
                             print("STALEMATE! It's a draw.")
-
-                        game_over=True
+                        game_over = True
 
 if __name__ == '__main__':
     main()

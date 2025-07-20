@@ -12,3 +12,8 @@ BISHOP_135DIAG = [0, 256, 66048, 16909312, 4328785920, 1108169199616, 2836913151
 INITIAL_WHITE = {'pawn': 65280, 'knight': 66, 'bishop': 36, 'queen': 8, 'rook': 129, 'king': 16}
 INITIAL_BLACK = {'pawn': 71776119061217280, 'knight': 4755801206503243776, 'bishop': 2594073385365405696,\
                  'queen': 576460752303423488, 'rook': 9295429630892703744, 'king': 1152921504606846976}
+
+#1+2+4+8+16+32+64+128 = 255
+_RANK_MASK = 255
+RANK_2 = _RANK_MASK << 8 #represents the 2nd rank by shifting the mask 8 bits
+RANK_7 = _RANK_MASK << 48 #represents the 7th rank by shifting the mask 48 bits.
