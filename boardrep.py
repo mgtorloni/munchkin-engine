@@ -293,7 +293,9 @@ class ValidMoves:
         if rook_bitboard ==0:
             return 0
 
-        own_pieces = sum(self.board[colour].values()) 
+        
+        own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
+
         index = conversions.square_to_index(rook_bitboard)
 
         #refer to generating functions to see how these were obtained 
@@ -306,7 +308,7 @@ class ValidMoves:
 
     def bishop_attacks(self,bishop_bitboard:int,colour:str = "white")->int:
         """Finds which squares a bishop is attacking""" 
-        own_pieces = sum(self.board[colour].values())
+        own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
         index = conversions.square_to_index(bishop_bitboard)
 
         #refer to generating functions to see how these were obtained 
