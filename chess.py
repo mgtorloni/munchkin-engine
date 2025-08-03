@@ -4,6 +4,7 @@ import pieces
 import conversions
 import constants
 from functools import partial 
+import munchkin
 #------------------INIT-------------------
 pygame.init()
 WIDTH, HEIGHT = 1280, 960
@@ -55,7 +56,7 @@ def mouse_on_piece(bitboard:dict[str,int]) -> tuple[bool,str]:
             return (True, clicked_square, piece)
     return False, 0, ""
 
-def make_move(board_rep: BoardRep, legal_moves:list,  colour: int = 0):   
+def handle_move(board_rep: BoardRep, legal_moves:list,  colour: int = 0):   
     on_piece_result = mouse_on_piece(board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black)
     if not on_piece_result[0]:
         return False
@@ -65,9 +66,9 @@ def make_move(board_rep: BoardRep, legal_moves:list,  colour: int = 0):
         if evt.type == pygame.MOUSEBUTTONUP:
             target_square = conversions.pixel_to_square(pygame.mouse.get_pos())
             move = (source_square,target_square)
-            
+
             if move in legal_moves:
-                board_rep.make_move(move,colour,en_passant_square = board_rep.en_passant_square)
+                board_rep.make_move(move = move,colour = colour,en_passant_square = board_rep.en_passant_square)
                 return True
             else:
                 return False
@@ -107,8 +108,10 @@ def main():
             if event.type == pygame.MOUSEBUTTONDOWN: 
                 current_player_colour = "white" if turn==0 else "black"
                 
-                # vvv MODIFY THE CALL AND THE LOGIC AFTERWARD vvv
-                move_made = make_move(b,legal_moves=current_legal_moves,colour=current_player_colour)
+                if current_player_colour == "white":
+                    move_made = handle_move(b,legal_moves=current_legal_moves,colour=current_player_colour)
+                if current_player_colour == "black":
+                    move_made = munchkin.munchkin_move(board_rep = b,legal_moves = current_legal_moves,colour = current_player_colour)
 
                 if move_made:
                     turn ^= 1 # flip after a legal move

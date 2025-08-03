@@ -36,7 +36,7 @@ class BoardRep:
             self.bitboard_black[piece] &= ~square
             return self.bitboard_black
 
-    def set_bit(self,square:int, piece: str,colour = "white") -> int:
+    def set_bit(self,square:int, piece: str,colour="white") -> int:
         """Set piece on a bit"""
 
         if colour.lower() == "white": 
@@ -57,6 +57,7 @@ class BoardRep:
         opponent_board = self.bitboard_black if colour == "white" else self.bitboard_white
 
         moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square), None)
+        print(f"Moved piece:{moved_piece}")
         captured_piece = next((p for p, bb in opponent_board.items() if bb & target_square), None)
 
         # Prepare info needed to undo the move
@@ -221,7 +222,6 @@ class ValidMoves:
         sqrs_att_king_sd = False 
         result = (True,True)
         rights = self.board_rep.castling_white if colour == "white" else self.board_rep.castling_black
-        print(f"Has anything moved? {rights}")
         #if any square on the queen/king side is attacked return false
         if colour == "white":
             sqrs_att_queen_sd = any(self.is_square_attacked(square, attacker_colour) for square in [1<<4,1<<3,1<<2]) 
@@ -271,7 +271,7 @@ class ValidMoves:
         return False #if no pieces attacks that square, then return false
 
     def knight_attacks(self,piece_bitboard:int,colour:str="white")-> int:
-        """Finds which square a knight is attacking"""
+        """Finds which squares a knight is attacking"""
         
         own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
         knight_attacks = ((piece_bitboard >> 15) & self.notAFile) | ((piece_bitboard << 15) & self.notHFile) | \
@@ -373,7 +373,7 @@ class ValidMoves:
         """Generates a list of all legal moves for a given colour."""
         legal_moves = []
         castling_rights = self.can_castle(colour) 
-        print(castling_rights)
+        #print(castling_rights)
         opponent_colour = "black" if colour == "white" else "white"
         attack_functions = {
                 "pawn":self.pawn_attacks,"rook":self.rook_attacks,
@@ -396,7 +396,7 @@ class ValidMoves:
 
         for piece,bitboard in current_player_bb.items():
             source_squares = bitboard
-            print("Piece:"+piece+", Colour:"+colour)
+            #print("Piece:"+piece+", Colour:"+colour)
             
             while source_squares:
                 source = source_squares & -source_squares
@@ -419,6 +419,6 @@ class ValidMoves:
                     target_squares &= target_squares -1 #move to the next target square
                 #print(target_squares)
                 source_squares &= source_squares - 1
-        print("==============================================")
+        #print("==============================================")
         return legal_moves
 
