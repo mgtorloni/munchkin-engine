@@ -31,6 +31,7 @@ class BoardRep:
         if colour.lower() == "white": 
             self.bitboard_white[piece] &= ~square
             return self.bitboard_white
+
         elif colour.lower() == "black":
             self.bitboard_black[piece] &= ~square
             return self.bitboard_black
