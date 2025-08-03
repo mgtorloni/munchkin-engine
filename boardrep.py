@@ -38,6 +38,7 @@ class BoardRep:
 
     def set_bit(self,square:int, piece: str,colour = "white") -> int:
         """Set piece on a bit"""
+
         if colour.lower() == "white": 
             self.bitboard_white[piece] |= square
             return self.bitboard_white
