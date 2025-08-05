@@ -57,7 +57,6 @@ class BoardRep:
         opponent_board = self.bitboard_black if colour == "white" else self.bitboard_white
 
         moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square), None)
-        print(f"Moved piece:{moved_piece}")
         captured_piece = next((p for p, bb in opponent_board.items() if bb & target_square), None)
 
         # Prepare info needed to undo the move
@@ -196,10 +195,15 @@ class ValidMoves:
 
         self.occupied_squares = self.white_pieces|self.black_pieces
 
-        self.notHFile = ~sum(1 << (7 + 8 * i) for i in range(8))
-        self.notGHFile = (self.notHFile & (~sum(1<< (6+8*i) for i in range(8))))
-        self.notAFile = ~sum(1 << (8 * i) for i in range(8))
-        self.notABFile = (self.notAFile & (~sum(1<< (1+8*i) for i in range(8))))
+        self.FILE_A = 0x0101010101010101;
+        self.FILE_H = 0x8080808080808080;
+        self.FILE_AB = self.FILE_A | (self.FILE_A << 1);
+        self.FILE_GH = self.FILE_H | (self.FILE_H >> 1);
+
+        self.notHFile = ~self.FILE_H
+        self.notGHFile = ~self.FILE_GH
+        self.notAFile = ~self.FILE_A
+        self.notABFile = ~self.FILE_AB
 
 
     def king_attacks(self,king_bitboard:int,colour:str="white")->int:
@@ -272,16 +276,23 @@ class ValidMoves:
 
     def knight_attacks(self,piece_bitboard:int,colour:str="white")-> int:
         """Finds which squares a knight is attacking"""
+        print(f"Colour: {colour}, Input piece_bitboard: {piece_bitboard}")
         
         own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
-        knight_attacks = ((piece_bitboard >> 15) & self.notAFile) | ((piece_bitboard << 15) & self.notHFile) | \
-                ((piece_bitboard << 10) & self.notABFile) | ((piece_bitboard >> 10) & self.notGHFile) | \
-                  ((piece_bitboard << 17) & self.notAFile) | ((piece_bitboard >> 17) & self.notHFile) | \
-                  ((piece_bitboard << 6)  & self.notGHFile) | ((piece_bitboard >> 6)  & self.notABFile)
+        knight_attacks = ((piece_bitboard >> 15) & self.notAFile) | \
+                ((piece_bitboard << 15) & self.notHFile) | \
+                ((piece_bitboard << 10) & self.notABFile) | \
+                ((piece_bitboard >> 10) & self.notGHFile) | \
+                ((piece_bitboard << 17) & self.notAFile) | \
+                ((piece_bitboard >> 17) & self.notHFile) | \
+                ((piece_bitboard << 6)  & self.notGHFile) | \
+                ((piece_bitboard >> 6)  & self.notABFile)
 
         #TODO: HARD CODE VALUES LIKE WE DID WITH BISHOPS,ROOKS AND QUEENS 
         knight_attacks &= ~own_pieces
-        return knight_attacks
+        return knight_attacks & 0xFFFFFFFFFFFFFFFF #We have to and it with the board
+        #otherwise shifting the bits would leave the board to a square we don't know of
+        #and therefore can't do &self.notSOMEFILE
     
     def pawn_attacks(self,pawn_bitboard:int,colour:str="white")->int:
         """Finds which squares a pawn is attacking, including moves, captures, and en passant."""
