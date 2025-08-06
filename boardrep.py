@@ -276,7 +276,6 @@ class ValidMoves:
 
     def knight_attacks(self,piece_bitboard:int,colour:str="white")-> int:
         """Finds which squares a knight is attacking"""
-        print(f"Colour: {colour}, Input piece_bitboard: {piece_bitboard}")
         
         own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
         knight_attacks = ((piece_bitboard >> 15) & self.notAFile) | \
