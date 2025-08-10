@@ -1,4 +1,4 @@
-from boardrep import BoardRep
+from boardrep import BoardRep,ValidMoves
 import random
 import numpy as np
 from dataclasses import dataclass
@@ -103,37 +103,100 @@ def munchkin_move(board_rep:BoardRep,legal_moves:list, colour = "black"):
 
     #print(f"Legal moves: {legal_moves}")
 
-    move = random.choice(legal_moves)
-    #source_square,target_square = move
+    best_move = find_best_move(board_rep,legal_moves,4,colour)
 
-    board = board_rep.bitboard_black if colour == "black" else board_rep.bitboard_white
-    opponent_board = board_rep.bitboard_white if colour == "black" else board_rep.bitboard_black
-    evaluation = evaluate_board(board_rep, values, tables)
-    print(evaluation)
+    source_square, target_square = best_move
+    current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
 
-    board_rep.make_move(move = move,colour = colour,en_passant_square = board_rep.en_passant_square)
+    moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square), None)
+    board_rep.make_move(move = best_move,moved_piece = moved_piece, colour = colour,en_passant_square = board_rep.en_passant_square)
 
     return True
 
+def negamax(board_rep,values,tables,depth,colour,alpha,beta):
+    if depth == 0:
+        evaluation = evaluate_board(board_rep.bitboard_white,board_rep.bitboard_black,values,tables)
+        sign = 1 if colour == "white" else -1 
+        return sign*evaluation
+    max_eval = -np.inf
 
-def evaluate_board(board_rep,values,tables):
+    validator = ValidMoves(board_rep)
+    legal_moves = validator.generate_all_legal_moves(colour)
+
+    if not legal_moves:
+        return -np.inf
+
+    current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
+
+    for move in legal_moves:
+        source_square,_ = move
+        moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square), None)
+        unmake_info = board_rep.make_move(move, moved_piece, colour, board_rep.en_passant_square)
+
+        opponent_colour = "black" if colour == "white" else "white"
+        current_eval = -negamax(board_rep,values,tables,depth-1,opponent_colour,-beta,-alpha)
+
+        board_rep.unmake_move(unmake_info)
+
+        if current_eval>max_eval:
+            max_eval = current_eval
+
+        if max_eval>alpha:
+            alpha = max_eval
+
+        if alpha >= beta:
+            break
+
+    return max_eval
+
+def find_best_move(board_rep, legal_moves, depth, colour):
+    values = PieceValue()
+    tables = PieceTable()
+
+    alpha = -np.inf
+    beta = np.inf
+
+    best_move = None
+
+    for move in legal_moves:
+        source_square, target_square = move
+        current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
+        moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square), None)
+
+        if not moved_piece:
+            continue
+
+        unmake_info = board_rep.make_move(move, moved_piece, colour, board_rep.en_passant_square)
+
+        opponent_colour = "black" if colour == "white" else "white"
+        score = -negamax(board_rep, values, tables, depth-1, opponent_colour,-beta,-alpha)
+        print(f"Move: {source_square}{target_square} ({moved_piece}), Score: {score}")
+        board_rep.unmake_move(unmake_info)
+
+        if score > alpha:
+            alpha = score
+            best_move = move
+
+    print(f"Munchkin found best move: {best_move} with score: {alpha}")
+    return best_move
+
+
+def evaluate_board(board_white,board_black,values,tables):
     white_score = 0
     black_score = 0
 
-    for piece, bitboard in board_rep.bitboard_white.items():
+    for piece, bitboard in board_white.items():
         piece_value = getattr(values, piece)
         piece_table = getattr(tables, piece)
         bb_copy = bitboard
         while bb_copy > 0:
             lsb = bb_copy & -bb_copy
             square_index = lsb.bit_length() - 1
-            # Add material value
             white_score += piece_value
-            # Add positional value using your original indexing for White
             white_score += piece_table[7 - (square_index // 8)][square_index % 8]
             bb_copy &= (bb_copy - 1)
 
-    for piece, bitboard in board_rep.bitboard_black.items():
+    for piece, bitboard in board_black.items():
         piece_value = getattr(values, piece)
         piece_table = getattr(tables, piece)
         bb_copy = bitboard

@@ -49,14 +49,13 @@ class BoardRep:
         else:
             raise ValueError("Color must be either 'white' or 'black'")
 
-    def make_move(self, move: tuple, colour: str, en_passant_square: int = 0):
+    def make_move(self, move: tuple,moved_piece:str, colour: str, en_passant_square: int = 0):
         source_square, target_square = move
         opponent_colour = "black" if colour == "white" else "white"
 
         current_player_board = self.bitboard_white if colour == "white" else self.bitboard_black
         opponent_board = self.bitboard_black if colour == "white" else self.bitboard_white
 
-        moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square), None)
         captured_piece = next((p for p, bb in opponent_board.items() if bb & target_square), None)
 
         # Prepare info needed to undo the move
@@ -89,7 +88,7 @@ class BoardRep:
         else:
              # Handle regular captures on the target square
             if captured_piece:
-                self.capture_at(target_square, opponent_colour)
+                self.capture_at(target_square, opponent_colour) # TODO: I think I can do this with unset_bit actually
 
 
         if moved_piece == 'king':
@@ -142,6 +141,21 @@ class BoardRep:
         self.set_bit(source_square, moved_piece, colour)
         self.unset_bit(target_square, moved_piece, colour)
         
+        if unmake_info.get("is_castle"):
+            # Determine where the rook was and where it went
+            # king-side castle
+            if target_square > source_square:
+                rook_start_square = target_square << 1
+                rook_end_square = target_square >> 1
+            # Queen-side castle
+            else:
+                rook_start_square = target_square >> 2
+                rook_end_square = target_square << 1
+
+            # Move the rook back to its original square
+            self.set_bit(rook_start_square, 'rook', colour)
+            self.unset_bit(rook_end_square, 'rook', colour)
+
         #En Passant and Regular Capture Logic 
         if captured_piece:
             # If it was en passant, put the captured pawn back on its special square
@@ -415,7 +429,7 @@ class ValidMoves:
                 target_squares = pseudo_legal_moves
                 while target_squares:
                     target = target_squares & -target_squares
-                    unmake_info = self.board_rep.make_move((source, target), colour, en_passant_square = self.board_rep.en_passant_square)
+                    unmake_info = self.board_rep.make_move((source, target), piece, colour, en_passant_square = self.board_rep.en_passant_square)
                     self.rebuild_state() # Update validator state to match temp board
 
                     king_bb = self.board_rep.bitboard_white["king"] if colour == "white" else self.board_rep.bitboard_black["king"]

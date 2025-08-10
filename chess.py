@@ -60,7 +60,7 @@ def handle_move(board_rep: BoardRep, legal_moves:list,  colour: int = 0):
     on_piece_result = mouse_on_piece(board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black)
     if not on_piece_result[0]:
         return False
-    source_square = on_piece_result[1]
+    source_square,piece_moved = on_piece_result[1], on_piece_result[2]
     while True:
         evt = pygame.event.wait()
         if evt.type == pygame.MOUSEBUTTONUP:
@@ -68,7 +68,7 @@ def handle_move(board_rep: BoardRep, legal_moves:list,  colour: int = 0):
             move = (source_square,target_square)
 
             if move in legal_moves:
-                board_rep.make_move(move = move,colour = colour,en_passant_square = board_rep.en_passant_square)
+                board_rep.make_move(move = move,moved_piece = piece_moved, colour = colour,en_passant_square = board_rep.en_passant_square)
                 return True
             else:
                 return False
