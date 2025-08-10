@@ -88,7 +88,7 @@ class BoardRep:
         else:
              # Handle regular captures on the target square
             if captured_piece:
-                self.capture_at(target_square, opponent_colour) # TODO: I think I can do this with unset_bit actually
+                self.unset_bit(target_square,captured_piece,opponent_colour)
 
 
         if moved_piece == 'king':
@@ -192,13 +192,6 @@ class BoardRep:
 
         return (self.bitboard_white,self.bitboard_black)
 
-    def capture_at(self,square: int, colour:str):
-        """Removes that piece out of the general bitboard"""
-        bitboard = (self.bitboard_white if colour.lower()=="white" else self.bitboard_black)
-        for piece, bb in bitboard.items():
-            if bb & square:
-                bitboard[piece] &=~square
-                break
 
 class ValidMoves:
     def __init__(self,boardrep: BoardRep):
@@ -209,23 +202,18 @@ class ValidMoves:
 
         self.occupied_squares = self.white_pieces|self.black_pieces
 
-        self.FILE_A = 0x0101010101010101;
-        self.FILE_H = 0x8080808080808080;
+        self.FILE_A = 0x0101010101010101
+        self.FILE_H = 0x8080808080808080
         self.FILE_AB = self.FILE_A | (self.FILE_A << 1);
         self.FILE_GH = self.FILE_H | (self.FILE_H >> 1);
-
-        self.notHFile = ~self.FILE_H
-        self.notGHFile = ~self.FILE_GH
-        self.notAFile = ~self.FILE_A
-        self.notABFile = ~self.FILE_AB
 
 
     def king_attacks(self,king_bitboard:int,colour:str="white")->int:
         """This returns only the raw attacks, see is_square_attacked for checking if the king is in check"""
         own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
-        attacks = ((king_bitboard >> 1) & self.notHFile) | ((king_bitboard << 1) & self.notAFile) |  \
-           ((king_bitboard >> 7) & self.notAFile) | ((king_bitboard >> 9) & self.notHFile) |  \
-           ((king_bitboard << 7) & self.notHFile) | ((king_bitboard << 9) & self.notAFile) |  \
+        attacks = ((king_bitboard >> 1) & ~self.FILE_H) | ((king_bitboard << 1) & ~self.FILE_A) |  \
+           ((king_bitboard >> 7) & ~self.FILE_A) | ((king_bitboard >> 9) & ~self.FILE_H) |  \
+           ((king_bitboard << 7) & ~self.FILE_H) | ((king_bitboard << 9) & ~self.FILE_A) |  \
            (king_bitboard >> 8) | (king_bitboard << 8)
         
         # Add a 64-bit mask to discard any "off-board" bits before returning
@@ -262,13 +250,13 @@ class ValidMoves:
         if attacker_colour == "white":
             #if the colour of the attacker is white then the pawn atttacks up meaning
             #we need to check if there are pawns behind us
-            potential_attackers = ((square_bb>>9) & self.notHFile) | ((square_bb>>7) & self.notAFile)
+            potential_attackers = ((square_bb>>9) & ~self.FILE_H) | ((square_bb>>7) & ~self.FILE_A)
             if potential_attackers & attacker_board["pawn"]:
                 return True
         elif attacker_colour == "black":
             #if the colour of the attacker is white then the pawn atttacks down meaning
             #we need to check if there are pawns above us
-            potential_attackers = ((square_bb<<9) & self.notAFile) | ((square_bb<<7) & self.notHFile)
+            potential_attackers = ((square_bb<<9) & ~self.FILE_A) | ((square_bb<<7) & ~self.FILE_H)
             if potential_attackers & attacker_board["pawn"]:
                 return True
 
@@ -292,14 +280,14 @@ class ValidMoves:
         """Finds which squares a knight is attacking"""
         
         own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
-        knight_attacks = ((piece_bitboard >> 15) & self.notAFile) | \
-                ((piece_bitboard << 15) & self.notHFile) | \
-                ((piece_bitboard << 10) & self.notABFile) | \
-                ((piece_bitboard >> 10) & self.notGHFile) | \
-                ((piece_bitboard << 17) & self.notAFile) | \
-                ((piece_bitboard >> 17) & self.notHFile) | \
-                ((piece_bitboard << 6)  & self.notGHFile) | \
-                ((piece_bitboard >> 6)  & self.notABFile)
+        knight_attacks = ((piece_bitboard >> 15) & ~self.FILE_A) | \
+                ((piece_bitboard << 15) & ~self.FILE_H) | \
+                ((piece_bitboard << 10) & ~self.FILE_AB) | \
+                ((piece_bitboard >> 10) & ~self.FILE_GH) | \
+                ((piece_bitboard << 17) & ~self.FILE_A) | \
+                ((piece_bitboard >> 17) & ~self.FILE_H) | \
+                ((piece_bitboard << 6)  & ~self.FILE_GH) | \
+                ((piece_bitboard >> 6)  & ~self.FILE_AB)
 
         #TODO: HARD CODE VALUES LIKE WE DID WITH BISHOPS,ROOKS AND QUEENS 
         knight_attacks &= ~own_pieces
@@ -321,10 +309,10 @@ class ValidMoves:
                 moves = single_push | double_push
             else:
                 moves = single_push
-            attacks = ((pawn_bitboard << 9) & self.notAFile) | ((pawn_bitboard << 7) & self.notHFile)
+            attacks = ((pawn_bitboard << 9) & ~self.FILE_A) | ((pawn_bitboard << 7) & ~self.FILE_H)
             attacks &= enemy_pieces
             if self.board_rep.en_passant_square:
-                ep_attacks = ((pawn_bitboard << 9) & self.notAFile) | ((pawn_bitboard << 7) & self.notHFile)
+                ep_attacks = ((pawn_bitboard << 9) & ~self.FILE_A) | ((pawn_bitboard << 7) & ~self.FILE_H)
                 if ep_attacks & self.board_rep.en_passant_square:
                     en_passant_move = self.board_rep.en_passant_square
 
@@ -336,10 +324,10 @@ class ValidMoves:
                 moves = single_push | double_push
             else:
                 moves = single_push
-            attacks = ((pawn_bitboard >> 7) & self.notHFile) | ((pawn_bitboard >> 9) & self.notAFile)
+            attacks = ((pawn_bitboard >> 7) & ~self.FILE_H) | ((pawn_bitboard >> 9) & ~self.FILE_A)
             attacks &= enemy_pieces
             if self.board_rep.en_passant_square:
-                ep_attacks = ((pawn_bitboard >> 7) & self.notHFile) | ((pawn_bitboard >> 9) & self.notAFile)
+                ep_attacks = ((pawn_bitboard >> 7) & ~self.FILE_H) | ((pawn_bitboard >> 9) & ~self.FILE_A)
                 if ep_attacks & self.board_rep.en_passant_square:
                     en_passant_move = self.board_rep.en_passant_square
 

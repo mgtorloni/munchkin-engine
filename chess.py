@@ -17,7 +17,7 @@ def board_gui(screen: pygame.Surface)->None:
     """Draw the chessboard """
     for i in range(8):
         for j in range(8):
-            color = (122,74,61) if (i + j) % 2 == 0 else (95, 54, 53)
+            color = (237,237,234) if (i + j) % 2 == 0 else (50, 104, 75)
             pygame.draw.rect(screen, color, pygame.Rect(j * SQUARE_SIZE, i * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
 
 def draw_pieces(
@@ -102,33 +102,35 @@ def main():
                     running = False #quit only after the quit event
             continue
 
+        current_player_colour = "white" if turn == 0 else "black"
+        move_made = False
+
+        if current_player_colour == "black":
+            move_made = munchkin.munchkin_move(board_rep = b,legal_moves = current_legal_moves,colour = current_player_colour)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN: 
-                current_player_colour = "white" if turn==0 else "black"
-                
                 if current_player_colour == "white":
                     move_made = handle_move(b,legal_moves=current_legal_moves,colour=current_player_colour)
-                if current_player_colour == "black":
-                    move_made = munchkin.munchkin_move(board_rep = b,legal_moves = current_legal_moves,colour = current_player_colour)
 
-                if move_made:
-                    turn ^= 1 # flip after a legal move
-                    next_player_colour = "white" if turn == 0 else "black"
-                    opponent_colour = "black" if turn == 0 else "white"
-                    
-                    # Regenerate validator and moves for the next turn
-                    validator = ValidMoves(b)
-                    current_legal_moves = validator.generate_all_legal_moves(next_player_colour)
-                    
-                    if not current_legal_moves:
-                        king_position = b.bitboard_white["king"] if next_player_colour == "white" else b.bitboard_black["king"]
-                        if validator.is_square_attacked(king_position, opponent_colour):
-                            print(f"CHECKMATE! {opponent_colour.upper()} wins!")
-                        else:
-                            print("STALEMATE! It's a draw.")
-                        game_over = True
+        if move_made:
+            turn ^= 1 # flip after a legal move
+            next_player_colour = "white" if turn == 0 else "black"
+            opponent_colour = "black" if turn == 0 else "white"
+            
+            # Regenerate validator and moves for the next turn
+            validator = ValidMoves(b)
+            current_legal_moves = validator.generate_all_legal_moves(next_player_colour)
+            
+            if not current_legal_moves:
+                king_position = b.bitboard_white["king"] if next_player_colour == "white" else b.bitboard_black["king"]
+                if validator.is_square_attacked(king_position, opponent_colour):
+                    print(f"CHECKMATE! {opponent_colour.upper()} wins!")
+                else:
+                    print("STALEMATE! It's a draw.")
+                game_over = True
 
 if __name__ == '__main__':
     main()
