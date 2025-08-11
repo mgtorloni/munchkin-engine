@@ -49,53 +49,40 @@ class BoardRep:
         else:
             raise ValueError("Color must be either 'white' or 'black'")
 
-    def make_move(self, move: tuple,moved_piece:str, colour: str, en_passant_square: int = 0):
-        source_square, target_square = move
-        opponent_colour = "black" if colour == "white" else "white"
+    def make_move(self, move: tuple, moved_piece:str, colour: str):
+        source_square,target_square = move
 
-        current_player_board = self.bitboard_white if colour == "white" else self.bitboard_black
-        opponent_board = self.bitboard_black if colour == "white" else self.bitboard_white
-
-        captured_piece = next((p for p, bb in opponent_board.items() if bb & target_square), None)
-
-        # Prepare info needed to undo the move
         unmake_info = {
-            "move": move, "moved_piece": moved_piece, "colour": colour,
-            "captured_piece": captured_piece, "was_en_passant": False,
-            "castling_white":list(self.castling_white),
-            "castling_black":list(self.castling_black),
-            "en_passant_square": self.en_passant_square
+            "white": self.bitboard_white.copy(),
+            "black": self.bitboard_black.copy(),
+            "en_passant_square": self.en_passant_square,
+            "castling_white": list(self.castling_white),
+            "castling_black": list(self.castling_black)
         }
 
-        # Store the EP square valid for this move, then reset the board's EP square for the next turn.
-        ep_square_for_this_move = en_passant_square
+        opponent_colour = "black" if colour=="white" else "white"
+        opponent_board = self.bitboard_black if colour == "white" else self.bitboard_white
+
+
+        ep_square_before_move = self.en_passant_square
         self.en_passant_square = 0
 
-        # Check if THIS move CREATES a new EP opportunity for the next turn.
-        if moved_piece == "pawn" and abs(conversions.square_to_index(source_square) - conversions.square_to_index(target_square)) == 16:
-            self.en_passant_square = (target_square >> 8) if colour == "white" else (target_square << 8)
-
-        # Check if THIS move IS an EP capture.
-        if moved_piece == 'pawn' and target_square == ep_square_for_this_move and ep_square_for_this_move != 0:
+        if moved_piece == 'pawn' and target_square == ep_square_before_move:
             captured_pawn_square = (target_square >> 8) if colour == "white" else (target_square << 8)
-            # The captured piece is a pawn, but it's not on the target square.
             self.unset_bit(captured_pawn_square, 'pawn', opponent_colour)
-
-            # Update unmake_info for this special case
-            unmake_info["was_en_passant"] = True
-            unmake_info["captured_piece_square"] = captured_pawn_square
-            unmake_info["captured_piece"] = 'pawn'
-        else:
-             # Handle regular captures on the target square
+        else: 
+            captured_piece = next((p for p, bb in opponent_board.items() if bb & target_square), None)
             if captured_piece:
-                self.unset_bit(target_square,captured_piece,opponent_colour)
+                self.unset_bit(target_square, captured_piece, opponent_colour)
 
+        if moved_piece == "pawn" and abs(conversions.square_to_index(source_square) - conversions.square_to_index(target_square)) == 16:
+            self.en_passant_square = (source_square << 8) if colour == "white" else (source_square >> 8)
 
         if moved_piece == 'king':
             if colour == 'white':
-                self.castling_white = [False,False]
-            elif colour == 'black':
-                self.castling_black = [False,False]
+                self.castling_white = [False, False]
+            else:
+                self.castling_black = [False, False]
 
         if moved_piece == 'rook':
             if colour == 'white':
@@ -122,55 +109,18 @@ class BoardRep:
 
             self.unset_bit(rook_start_square, 'rook', colour)
             self.set_bit(rook_end_square, 'rook', colour)
-            unmake_info['is_castle'] = True
 
         self.unset_bit(source_square, moved_piece, colour)
         self.set_bit(target_square, moved_piece, colour)
         return unmake_info
 
+
     def unmake_move(self, unmake_info: dict):
-        """
-        Reverts a move during simulation, correctly handling en passant.
-        """
-        source_square, target_square = unmake_info["move"]
-        moved_piece, colour = unmake_info["moved_piece"], unmake_info["colour"]
-        captured_piece = unmake_info["captured_piece"]
-        opponent_colour = "black" if colour == "white" else "white"
-
-        # Put the moved piece back
-        self.set_bit(source_square, moved_piece, colour)
-
-        if not captured_piece:
-            self.unset_bit(target_square,moved_piece,colour)
-        else:
-            self.unset_bit(target_square,moved_piece,colour)
-            # If it was en passant, put the captured pawn back on its special square
-            if unmake_info.get("was_en_passant"):
-                captured_square = unmake_info["captured_piece_square"]
-                self.set_bit(captured_square, captured_piece, opponent_colour)
-            # Otherwise, it was a regular capture on the target square
-            else:
-                self.set_bit(target_square, captured_piece, opponent_colour)
-
-        if unmake_info.get("is_castle"):
-            # Determine where the rook was and where it went
-            # king-side castle
-            if target_square > source_square:
-                rook_start_square = target_square << 1
-                rook_end_square = target_square >> 1
-            # Queen-side castle
-            else:
-                rook_start_square = target_square >> 2
-                rook_end_square = target_square << 1
-
-            # Move the rook back to its original square
-            self.set_bit(rook_start_square, 'rook', colour)
-            self.unset_bit(rook_end_square, 'rook', colour)
-
-            
+        self.bitboard_white = unmake_info["white"]
+        self.bitboard_black = unmake_info["black"]
+        self.en_passant_square = unmake_info["en_passant_square"]
         self.castling_white = unmake_info["castling_white"]
         self.castling_black = unmake_info["castling_black"]
-        self.en_passant_square = unmake_info["en_passant_square"]
 
     def full_bitboard(self):
         """Returns where all of the pieces are"""
@@ -327,10 +277,10 @@ class ValidMoves:
                 moves = single_push | double_push
             else:
                 moves = single_push
-            attacks = ((pawn_bitboard >> 7) & ~self.FILE_H) | ((pawn_bitboard >> 9) & ~self.FILE_A)
+            attacks = ((pawn_bitboard >> 9) & ~self.FILE_H) | ((pawn_bitboard >> 7) & ~self.FILE_A)
             attacks &= enemy_pieces
             if self.board_rep.en_passant_square:
-                ep_attacks = ((pawn_bitboard >> 7) & ~self.FILE_H) | ((pawn_bitboard >> 9) & ~self.FILE_A)
+                ep_attacks = ((pawn_bitboard >> 9) & ~self.FILE_H) | ((pawn_bitboard >> 7) & ~self.FILE_A)
                 if ep_attacks & self.board_rep.en_passant_square:
                     en_passant_move = self.board_rep.en_passant_square
 
@@ -420,7 +370,7 @@ class ValidMoves:
                 target_squares = pseudo_legal_moves
                 while target_squares:
                     target = target_squares & -target_squares
-                    unmake_info = self.board_rep.make_move((source, target), piece, colour, en_passant_square = self.board_rep.en_passant_square)
+                    unmake_info = self.board_rep.make_move((source, target), piece, colour)
                     self.rebuild_state() # Update validator state to match temp board
 
                     king_bb = self.board_rep.bitboard_white["king"] if colour == "white" else self.board_rep.bitboard_black["king"]

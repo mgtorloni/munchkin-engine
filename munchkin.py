@@ -108,28 +108,9 @@ def munchkin_move(board_rep:BoardRep,legal_moves:list, colour = "black"):
     current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
 
     moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square), None)
-    board_rep.make_move(move = best_move,moved_piece = moved_piece, colour = colour,en_passant_square = board_rep.en_passant_square)
+    board_rep.make_move(move = best_move,moved_piece = moved_piece, colour = colour)
 
     return True
-
-def get_move_priority(move, board_rep, colour, piece_order):
-    source, target = move
-    current_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
-    moved_piece = next((p for p, bb in current_board.items() if bb & source), None)
-    if not moved_piece:
-        return 0
-    opponent_board = board_rep.bitboard_black if colour == "white" else board_rep.bitboard_white
-    opponent_occupied = sum(opponent_board.values())
-    captured_piece = next((p for p, bb in opponent_board.items() if bb & target), None)
-    if captured_piece:
-        victim_val = piece_order[captured_piece]
-        attacker_val = piece_order[moved_piece]
-        return victim_val * 10 - attacker_val  # MVV-LVA score; all positive for captures
-    elif moved_piece == "pawn" and target == board_rep.en_passant_square:
-        victim_val = piece_order["pawn"]
-        attacker_val = piece_order["pawn"]
-        return victim_val * 10 - attacker_val
-    return 0  # Quiet moves
 
 def negamax(board_rep,values,tables,depth,colour,alpha,beta):
     if depth == 0:
@@ -151,7 +132,9 @@ def negamax(board_rep,values,tables,depth,colour,alpha,beta):
     for move in legal_moves:
         source_square,_ = move
         moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square), None)
-        unmake_info = board_rep.make_move(move, moved_piece, colour, board_rep.en_passant_square)
+        if not moved_piece:
+            continue
+        unmake_info = board_rep.make_move(move, moved_piece, colour)
 
         opponent_colour = "black" if colour == "white" else "white"
         current_eval = -negamax(board_rep,values,tables,depth-1,opponent_colour,-beta,-alpha)
@@ -182,15 +165,14 @@ def find_best_move(board_rep, legal_moves, depth, colour):
         source_square, target_square = move
         current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
         moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square), None)
-
         if not moved_piece:
             continue
 
-        unmake_info = board_rep.make_move(move, moved_piece, colour, board_rep.en_passant_square)
+        unmake_info = board_rep.make_move(move, moved_piece, colour)
 
         opponent_colour = "black" if colour == "white" else "white"
         score = -negamax(board_rep, values, tables, depth-1, opponent_colour,-beta,-alpha)
-        print(f"Move: {source_square}{target_square} ({moved_piece}), Score: {score}")
+        print(f"Move: {source_square}, {target_square} ({moved_piece}), Score: {score}")
         board_rep.unmake_move(unmake_info)
 
         if score > alpha:

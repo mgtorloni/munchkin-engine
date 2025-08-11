@@ -68,7 +68,7 @@ def handle_move(board_rep: BoardRep, legal_moves:list,  colour: int = 0):
             move = (source_square,target_square)
 
             if move in legal_moves:
-                board_rep.make_move(move = move,moved_piece = piece_moved, colour = colour,en_passant_square = board_rep.en_passant_square)
+                board_rep.make_move(move = move,moved_piece = piece_moved, colour = colour)
                 return True
             else:
                 return False
