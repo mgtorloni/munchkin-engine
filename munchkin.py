@@ -3,7 +3,14 @@ import random
 import numpy as np
 from dataclasses import dataclass
 
-
+piece_order = {
+    "pawn": 1,
+    "knight": 3,
+    "bishop": 3,
+    "rook": 5,
+    "queen": 9,
+    "king": 0  # Kings aren't captured, but include for completeness
+}
 @dataclass
 class PieceValue:
     pawn = 100
@@ -112,12 +119,30 @@ def munchkin_move(board_rep:BoardRep,legal_moves:list, colour = "black"):
 
     return True
 
+def get_move_priority(move, board_rep, colour, piece_order):
+    source, target = move
+    current_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
+    moved_piece = next((p for p, bb in current_board.items() if bb & source), None)
+    if not moved_piece:
+        return 0
+    opponent_board = board_rep.bitboard_black if colour == "white" else board_rep.bitboard_white
+    opponent_occupied = sum(opponent_board.values())
+    captured_piece = next((p for p, bb in opponent_board.items() if bb & target), None)
+    if captured_piece:
+        victim_val = piece_order[captured_piece]
+        attacker_val = piece_order[moved_piece]
+        return victim_val * 10 - attacker_val  # MVV-LVA score; all positive for captures
+    elif moved_piece == "pawn" and target == board_rep.en_passant_square:
+        victim_val = piece_order["pawn"]
+        attacker_val = piece_order["pawn"]
+        return victim_val * 10 - attacker_val
+    return 0  # Quiet moves
+
 def negamax(board_rep,values,tables,depth,colour,alpha,beta):
     if depth == 0:
         evaluation = evaluate_board(board_rep.bitboard_white,board_rep.bitboard_black,values,tables)
         sign = 1 if colour == "white" else -1 
         return sign*evaluation
-    max_eval = -np.inf
 
     validator = ValidMoves(board_rep)
     legal_moves = validator.generate_all_legal_moves(colour)
@@ -127,7 +152,11 @@ def negamax(board_rep,values,tables,depth,colour,alpha,beta):
         if validator.is_square_attacked(king_pos, colour):
             return -values.king
 
+    legal_moves.sort(key=lambda m: get_move_priority(m, board_rep, colour, piece_order), reverse=True)
+
     current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
+
+    max_eval = -np.inf
 
     for move in legal_moves:
         source_square,_ = move
@@ -161,6 +190,7 @@ def find_best_move(board_rep, legal_moves, depth, colour):
 
     best_move = None
 
+    legal_moves.sort(key=lambda m: get_move_priority(m, board_rep, colour, piece_order), reverse=True)
     for move in legal_moves:
         source_square, target_square = move
         current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
