@@ -139,8 +139,19 @@ class BoardRep:
 
         # Put the moved piece back
         self.set_bit(source_square, moved_piece, colour)
-        self.unset_bit(target_square, moved_piece, colour)
-        
+
+        if not captured_piece:
+            self.unset_bit(target_square,moved_piece,colour)
+        else:
+            self.unset_bit(target_square,moved_piece,colour)
+            # If it was en passant, put the captured pawn back on its special square
+            if unmake_info.get("was_en_passant"):
+                captured_square = unmake_info["captured_piece_square"]
+                self.set_bit(captured_square, captured_piece, opponent_colour)
+            # Otherwise, it was a regular capture on the target square
+            else:
+                self.set_bit(target_square, captured_piece, opponent_colour)
+
         if unmake_info.get("is_castle"):
             # Determine where the rook was and where it went
             # king-side castle
@@ -156,16 +167,7 @@ class BoardRep:
             self.set_bit(rook_start_square, 'rook', colour)
             self.unset_bit(rook_end_square, 'rook', colour)
 
-        #En Passant and Regular Capture Logic 
-        if captured_piece:
-            # If it was en passant, put the captured pawn back on its special square
-            if unmake_info.get("was_en_passant"):
-                captured_square = unmake_info["captured_piece_square"]
-                self.set_bit(captured_square, captured_piece, opponent_colour)
-            # Otherwise, it was a regular capture on the target square
-            else:
-                self.set_bit(target_square, captured_piece, opponent_colour)
-
+            
         self.castling_white = unmake_info["castling_white"]
         self.castling_black = unmake_info["castling_black"]
         self.en_passant_square = unmake_info["en_passant_square"]
@@ -230,11 +232,11 @@ class ValidMoves:
         rights = self.board_rep.castling_white if colour == "white" else self.board_rep.castling_black
         #if any square on the queen/king side is attacked return false
         if colour == "white":
-            sqrs_att_queen_sd = any(self.is_square_attacked(square, attacker_colour) for square in [1<<4,1<<3,1<<2]) 
-            sqrs_att_king_sd = any(self.is_square_attacked(square, attacker_colour) for square in [1<<4,1<<5,1<<6]) 
+            sqrs_att_queen_sd = any(self.is_square_attacked(square, colour) for square in [1<<4,1<<3,1<<2]) 
+            sqrs_att_king_sd = any(self.is_square_attacked(square, colour) for square in [1<<4,1<<5,1<<6]) 
         if colour == "black":
-            sqrs_att_queen_sd = any(self.is_square_attacked(square, attacker_colour) for square in [1<<60,1<<59,1<<58]) 
-            sqrs_att_king_sd = any(self.is_square_attacked(square, attacker_colour) for square in [1<<60,1<<61,1<<62]) 
+            sqrs_att_queen_sd = any(self.is_square_attacked(square, colour) for square in [1<<60,1<<59,1<<58]) 
+            sqrs_att_king_sd = any(self.is_square_attacked(square, colour) for square in [1<<60,1<<61,1<<62]) 
 
         if self.occupied_squares & castling_king or sqrs_att_king_sd or not rights[0]:
             result = (False,result[1])
@@ -243,17 +245,18 @@ class ValidMoves:
             result = (result[0],False) 
         return result
 
-    def is_square_attacked(self,square_bb:int,attacker_colour:str) ->bool:
+    def is_square_attacked(self,square_bb:int,defender_colour:str) ->bool:
         """Checks if a (single) square is under attack"""
-        attacker_board = self.board_rep.bitboard_white if attacker_colour == "white" else self.board_rep.bitboard_black
-        defender_colour = "black" if attacker_colour =="white" else "white"
-        if attacker_colour == "white":
+
+        attacker_board = self.board_rep.bitboard_white if defender_colour== "black" else self.board_rep.bitboard_black
+
+        if defender_colour == "black":
             #if the colour of the attacker is white then the pawn atttacks up meaning
             #we need to check if there are pawns behind us
             potential_attackers = ((square_bb>>9) & ~self.FILE_H) | ((square_bb>>7) & ~self.FILE_A)
             if potential_attackers & attacker_board["pawn"]:
                 return True
-        elif attacker_colour == "black":
+        elif defender_colour == "white":
             #if the colour of the attacker is white then the pawn atttacks down meaning
             #we need to check if there are pawns above us
             potential_attackers = ((square_bb<<9) & ~self.FILE_A) | ((square_bb<<7) & ~self.FILE_H)
@@ -421,7 +424,7 @@ class ValidMoves:
                     self.rebuild_state() # Update validator state to match temp board
 
                     king_bb = self.board_rep.bitboard_white["king"] if colour == "white" else self.board_rep.bitboard_black["king"]
-                    if not self.is_square_attacked(king_bb, opponent_colour):
+                    if not self.is_square_attacked(king_bb, colour):
                         legal_moves.append((source, target))
 
                     # Restore the board and validator to their original state

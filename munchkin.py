@@ -3,6 +3,7 @@ import random
 import numpy as np
 from dataclasses import dataclass
 
+
 @dataclass
 class PieceValue:
     pawn = 100
@@ -94,8 +95,6 @@ class PieceTable:
     ])
     """
 
-    
-
 def munchkin_move(board_rep:BoardRep,legal_moves:list, colour = "black"):
 
     values= PieceValue()
@@ -113,6 +112,25 @@ def munchkin_move(board_rep:BoardRep,legal_moves:list, colour = "black"):
 
     return True
 
+def get_move_priority(move, board_rep, colour, piece_order):
+    source, target = move
+    current_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
+    moved_piece = next((p for p, bb in current_board.items() if bb & source), None)
+    if not moved_piece:
+        return 0
+    opponent_board = board_rep.bitboard_black if colour == "white" else board_rep.bitboard_white
+    opponent_occupied = sum(opponent_board.values())
+    captured_piece = next((p for p, bb in opponent_board.items() if bb & target), None)
+    if captured_piece:
+        victim_val = piece_order[captured_piece]
+        attacker_val = piece_order[moved_piece]
+        return victim_val * 10 - attacker_val  # MVV-LVA score; all positive for captures
+    elif moved_piece == "pawn" and target == board_rep.en_passant_square:
+        victim_val = piece_order["pawn"]
+        attacker_val = piece_order["pawn"]
+        return victim_val * 10 - attacker_val
+    return 0  # Quiet moves
+
 def negamax(board_rep,values,tables,depth,colour,alpha,beta):
     if depth == 0:
         evaluation = evaluate_board(board_rep.bitboard_white,board_rep.bitboard_black,values,tables)
@@ -124,7 +142,9 @@ def negamax(board_rep,values,tables,depth,colour,alpha,beta):
     legal_moves = validator.generate_all_legal_moves(colour)
 
     if not legal_moves:
-        return -np.inf
+        king_pos = board_rep.bitboard_white["king"] if colour == "white" else board_rep.bitboard_black["king"] 
+        if validator.is_square_attacked(king_pos, colour):
+            return -values.king
 
     current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
 

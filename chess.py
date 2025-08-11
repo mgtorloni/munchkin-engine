@@ -126,7 +126,7 @@ def main():
             
             if not current_legal_moves:
                 king_position = b.bitboard_white["king"] if next_player_colour == "white" else b.bitboard_black["king"]
-                if validator.is_square_attacked(king_position, opponent_colour):
+                if validator.is_square_attacked(king_position, next_player_colour):
                     print(f"CHECKMATE! {opponent_colour.upper()} wins!")
                 else:
                     print("STALEMATE! It's a draw.")
