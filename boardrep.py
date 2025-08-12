@@ -75,6 +75,12 @@ class BoardRep:
             if captured_piece:
                 self.unset_bit(target_square, captured_piece, opponent_colour)
 
+                #if one of the rooks has been captured, castling on that side is not allowed anymore
+                if target_square == 1: self.castling_white[1] = False
+                if target_square == 1<<7: self.castling_white[0] = False
+                if target_square == 1<<56: self.castling_black[1] = False
+                if target_square == 1<<63: self.castling_black[0] = False
+
         if moved_piece == "pawn" and abs(conversions.square_to_index(source_square) - conversions.square_to_index(target_square)) == 16:
             self.en_passant_square = (source_square << 8) if colour == "white" else (source_square >> 8)
 

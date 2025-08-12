@@ -16,4 +16,4 @@ INITIAL_BLACK = {'pawn': 71776119061217280, 'knight': 4755801206503243776, 'bish
 #1+2+4+8+16+32+64+128 = 255
 _RANK_MASK = 255
 RANK_2 = _RANK_MASK << 8 #represents the 2nd rank by shifting the mask 8 bits
-RANK_7 = _RANK_MASK << 48 #represents the 7th rank by shifting the mask 48 bits.
+RANK_7 = _RANK_MASK << 8*6 #represents the 7th rank by shifting the mask 48 bits.
