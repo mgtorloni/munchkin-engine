@@ -76,52 +76,60 @@ def handle_move(board_rep: BoardRep, legal_moves:list,  colour: int = 0):
     
 def main():
     b = BoardRep()
-    bitboards = b.initial_position()
+    b.initial_position()
     WHITE_IMGS, BLACK_IMGS = pieces.piece_images(pygame, constants.SQUARE_SIZE)
 
     running, turn = True, 0  # 0 = white, 1 = black
     game_over = False
+    game_mode = None
     clock = pygame.time.Clock()
+
+    while game_mode is None:
+        choice = input("Select game mode:\n1: Player vs Player\n2: Player vs AI\nEnter choice (1 or 2): ")
+        if choice == '1':
+            game_mode = 'pvp'
+        elif choice == '2':
+            game_mode = 'pvai'
+        else:
+            print("Invalid choice. Please enter 1 or 2.")
 
     #generate all legal moves for white's first turn
     validator = ValidMoves(b)
-
     current_legal_moves = validator.generate_all_legal_moves("white")
-
     
-
     while running:
         clock.tick(60)
         board_gui(screen)
         draw_pieces(screen, (b.bitboard_white, b.bitboard_black), (WHITE_IMGS, BLACK_IMGS))
         pygame.display.flip()
 
-        if game_over: # if the game is over I still want to be able to see the board
+        if game_over:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    running = False #quit only after the quit event
+                    running = False
             continue
 
         current_player_colour = "white" if turn == 0 else "black"
         move_made = False
+        
+        is_ai_turn = (game_mode == 'pvai' and current_player_colour == 'black')
 
-        if current_player_colour == "black":
-            move_made = munchkin.munchkin_move(board_rep = b,legal_moves = current_legal_moves,colour = current_player_colour)
-
+        if is_ai_turn:
+            move_made = munchkin.munchkin_move(board_rep=b, legal_moves=current_legal_moves, colour=current_player_colour)
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            if event.type == pygame.MOUSEBUTTONDOWN: 
-                if current_player_colour == "white":
-                    move_made = handle_move(b,legal_moves=current_legal_moves,colour=current_player_colour)
+            
+            # Handle human move only if it's not the AI's turn
+            if not is_ai_turn and event.type == pygame.MOUSEBUTTONDOWN:
+                move_made = handle_move(b, legal_moves=current_legal_moves, colour=current_player_colour)
 
         if move_made:
             turn ^= 1 # flip after a legal move
             next_player_colour = "white" if turn == 0 else "black"
             opponent_colour = "black" if turn == 0 else "white"
             
-            # Regenerate validator and moves for the next turn
-            validator = ValidMoves(b)
             current_legal_moves = validator.generate_all_legal_moves(next_player_colour)
             
             if not current_legal_moves:
@@ -134,4 +142,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
