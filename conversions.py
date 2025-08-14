@@ -11,6 +11,21 @@ def square_to_algebraic(bb:int)->str:
 
     return files[file_index] + ranks[rank_index]
 
+def algebraic_to_bitboard(square:str)->int:
+
+    files = "abcdefgh"
+    ranks = "12345678"
+
+    file = square[0]
+    rank = square[1]
+
+    file_index = files.index(file)
+    rank_index = ranks.index(rank)
+
+    square_index = (rank_index*8) + file_index
+
+    return 1<< square_index
+
 def square_to_index(bitboard: int) -> int:
     """Returns index given a bitboard with one bit in it"""     
     return (bitboard & -bitboard).bit_length()-1
