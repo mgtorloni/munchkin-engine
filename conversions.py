@@ -1,4 +1,3 @@
-import pygame
 import constants 
 SQUARE_SIZE = constants.SQUARE_SIZE
 def square_to_algebraic(bb:int)->str:
@@ -13,6 +12,8 @@ def square_to_algebraic(bb:int)->str:
 
 def algebraic_to_bitboard(square:str)->int:
 
+    if square == None:
+        return 0
     files = "abcdefgh"
     ranks = "12345678"
 
@@ -24,7 +25,7 @@ def algebraic_to_bitboard(square:str)->int:
 
     square_index = (rank_index*8) + file_index
 
-    return 1<< square_index
+    return 1 << square_index
 
 def square_to_index(bitboard: int) -> int:
     """Returns index given a bitboard with one bit in it"""     
