@@ -6,9 +6,7 @@ import constants
 from functools import partial 
 import munchkin
 #------------------INIT-------------------
-pygame.init()
 WIDTH, HEIGHT = 1280, 960
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
 SQUARE_SIZE:int = constants.SQUARE_SIZE 
 
 #-----------------------------------------
@@ -77,12 +75,10 @@ def handle_move(board_rep: BoardRep, legal_moves:list,  colour: int = 0):
 def main():
     b = BoardRep()
     b.initial_position()
-    WHITE_IMGS, BLACK_IMGS = pieces.piece_images(pygame, constants.SQUARE_SIZE)
 
     running, turn = True, 0  # 0 = white, 1 = black
     game_over = False
     game_mode = None
-    clock = pygame.time.Clock()
 
     while game_mode is None:
         choice = input("Select game mode:\n1: Player vs Player\n2: Player vs AI\nEnter choice (1 or 2): ")
@@ -92,6 +88,11 @@ def main():
             game_mode = 'pvai'
         else:
             print("Invalid choice. Please enter 1 or 2.")
+
+    pygame.display.init()
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    WHITE_IMGS, BLACK_IMGS = pieces.piece_images(pygame, constants.SQUARE_SIZE)
+    clock = pygame.time.Clock()
 
     #generate all legal moves for white's first turn
     validator = ValidMoves(b)

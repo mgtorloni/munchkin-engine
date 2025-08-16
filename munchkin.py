@@ -110,7 +110,7 @@ def munchkin_move(board_rep:BoardRep,legal_moves:list, colour = "black"):
 
     #print(f"Legal moves: {legal_moves}")
 
-    best_move = find_best_move(board_rep,legal_moves,5,colour)
+    best_move = find_best_move(board_rep,legal_moves,4,colour)
 
     source_square, target_square = best_move
     current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
@@ -147,9 +147,8 @@ def minimax(board_rep,values,tables,depth,colour,alpha,beta):
     if not legal_moves:
         king_pos = board_rep.bitboard_white["king"] if colour == "white" else board_rep.bitboard_black["king"]
         if validator.is_square_attacked(king_pos,colour):
-            return -values.king
-        else:
-            return 0
+            sign = -1 if colour == "white" else 1
+            return sign*np.inf
 
     current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
     opponent_colour = "black" if colour == "white" else "white"
@@ -212,7 +211,7 @@ def find_best_move(board_rep, legal_moves, depth, colour):
 
         opponent_colour = "black" if colour == "white" else "white"
         score = minimax(board_rep, values, tables, depth-1, opponent_colour,alpha,beta)
-        print(f"Move: {conversions.square_to_algebraic(source_square)}, {conversions.square_to_algebraic(target_square)} ({moved_piece}), Score: {best_score}")
+        print(f"Move: {conversions.square_to_algebraic(source_square)}, {conversions.square_to_algebraic(target_square)} ({moved_piece}), Score: {score}")
         board_rep.unmake_move(unmake_info)
 
         if colour == "white":
@@ -227,7 +226,7 @@ def find_best_move(board_rep, legal_moves, depth, colour):
                 best_move = move
             beta = min(beta,score)
 
-    print(f"Munchkin found best move: {best_move[0]},{best_move[1]} with score: {alpha}")
+    print(f"Munchkin found best move: {best_move[0]},{best_move[1]} with score: {best_score}")
     return best_move
 
 

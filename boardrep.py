@@ -290,7 +290,7 @@ class ValidMoves:
                 if ep_attacks & self.board_rep.en_passant_square:
                     en_passant_move = self.board_rep.en_passant_square
 
-        return attacks | moves | en_passant_move
+        return attacks | moves | en_passant_move & 0xFFFFFFFFFFFFFFFF
 
     def hyperbola_quint(self,slider_bitboard:int,mask:int,colour:str = "white")->int: #slider attacks formula
         """Uses the hyperbola quintessential formula to calculate how the slider attacks stop at a piece on their way"""
