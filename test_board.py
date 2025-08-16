@@ -1,24 +1,7 @@
 import pytest
-from boardrep import BoardRep, ValidMoves
+from boardrep import BoardRep, ValidMoves, MoveHandler
 import munchkin
 import conversions
-def bitboard_to_string(bitboard: int, piece_bb:int = 0) -> str:
-    board_str = ""
-    for rank in range(7, -1, -1):
-        board_str += f"{rank + 1} | "
-        for file in range(8):
-            square_index = rank * 8 + file
-            square_bit = 1<<square_index
-            if piece_bb & square_bit:
-                board_str += "P "
-            elif bitboard & square_bit:
-                board_str += "X "
-            else:
-                board_str += ". "
-        board_str += "\n"
-    board_str += "  +-----------------\n"
-    board_str += "    A B C D E F G H\n"
-    return board_str
 
 @pytest.fixture
 def board_factory():
@@ -63,10 +46,11 @@ def validator_factory():
 def test_pawn_forward_moves(square,blocked, colour, expected_moves, board_factory, validator_factory):
 
     board_rep = board_factory()
+    move_handler = MoveHandler(board_rep)
     validator = validator_factory(board_rep)
 
 
-    board_rep.set_bit(
+    move_handler.set_bit(
         square=conversions.algebraic_to_bitboard(square),
         piece="pawn",
         colour=colour
@@ -75,9 +59,9 @@ def test_pawn_forward_moves(square,blocked, colour, expected_moves, board_factor
     opponent_colour = "black" if colour == "white" else "white"
     if blocked:
         if colour == "white":
-            board_rep.set_bit(conversions.algebraic_to_bitboard(square)<<8,"pawn",colour = opponent_colour)
+            move_handler.set_bit(conversions.algebraic_to_bitboard(square)<<8,"pawn",colour = opponent_colour)
         else:
-            board_rep.set_bit(conversions.algebraic_to_bitboard(square)>>8,"pawn",colour = opponent_colour)
+            move_handler.set_bit(conversions.algebraic_to_bitboard(square)>>8,"pawn",colour = opponent_colour)
 
 
     board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
@@ -87,8 +71,8 @@ def test_pawn_forward_moves(square,blocked, colour, expected_moves, board_factor
         bitboard_expected_moves |= conversions.algebraic_to_bitboard(move)
     
     actual_moves = validator.pawn_attacks(board["pawn"], colour)
-    print(f"\nTesting pawn on {square} with {colour}. Blocked = {blocked}")
-    print(f"\n{bitboard_to_string(actual_moves,conversions.algebraic_to_bitboard(square))}")
+
+    #print(f"\nTesting pawn on {square} with {colour}. Blocked = {blocked}")
 
     assert actual_moves == bitboard_expected_moves
 
@@ -116,10 +100,12 @@ def test_pawn_forward_moves(square,blocked, colour, expected_moves, board_factor
 ])
 
 def test_pawn_captures(square, not_squares, colour, expected_moves, board_factory, validator_factory):
+
     board_rep = board_factory()
+    move_handler = MoveHandler(board_rep)
     validator = validator_factory(board_rep)
 
-    board_rep.set_bit(
+    move_handler.set_bit(
         square=conversions.algebraic_to_bitboard(square),
         piece="pawn",
         colour=colour
@@ -134,7 +120,7 @@ def test_pawn_captures(square, not_squares, colour, expected_moves, board_factor
     for i in range(0, 64):
         square_bit = 1 << i
         if not (square_bit & do_not_populate_mask):
-            board_rep.set_bit(square_bit, "rook", colour=opponent_colour)
+            move_handler.set_bit(square_bit, "rook", colour=opponent_colour)
 
     board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
     bitboard_expected_moves = 0
@@ -143,10 +129,20 @@ def test_pawn_captures(square, not_squares, colour, expected_moves, board_factor
 
     actual_moves = validator.pawn_attacks(board["pawn"], colour)
     
-    print(f"\nTesting pawn on {square} ({colour}). Empty squares: {not_squares or 'None'}")
-    print(f"\n{bitboard_to_string(actual_moves, conversions.algebraic_to_bitboard(square))}")
+    #print(f"\nTesting pawn on {square} ({colour}). Empty squares: {not_squares or 'None'}")
     
-    assert actual_moves == bitboard_expected_moves
+    assert actual_moves == bitboard_expected_moves 
 
 
-def test_enpassant(square, colour,
+"""
+def test_enpassant(square, en_passant_square, colour, expected_moved, board_factory, validator_factory):
+    board_rep = board_factory()
+    move_handler = MoveHandler(board_rep)
+    validator = validator_factory(board_rep)
+
+    move_handler.set_bit(
+        square=conversions.algebraic_to_bitboard(square),
+        piece="pawn",
+        colour=colour
+    )
+"""

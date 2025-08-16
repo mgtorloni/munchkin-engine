@@ -79,13 +79,28 @@ class MoveHandler:
             "castling_black": copy.deepcopy(self.board_rep.castling_black)
         }
 
-        opponent_colour = "black" if colour=="white" else "white"
-        opponent_board = self.board_rep.bitboard_black if colour == "white" else self.board_rep.bitboard_white
-
 
         ep_square_before_move = self.board_rep.en_passant_square
-        self.board_rep.en_passant_square = 0
 
+        self._handle_captures(move,moved_piece,colour,ep_square_before_move)
+
+        self._update_game_state(move,moved_piece,colour) 
+
+        is_castle = moved_piece == 'king' and abs(conversions.square_to_index(source_square) - conversions.square_to_index(target_square)) == 2
+        if is_castle:
+            self.make_castle(move, colour)
+
+        # Move piece
+        self.unset_bit(source_square, moved_piece, colour)
+        self.set_bit(target_square, moved_piece, colour)
+
+        return unmake_info
+
+
+    def _handle_captures(self,move, moved_piece,colour, ep_square_before_move):
+        _,target_square = move
+        opponent_colour = "black" if colour=="white" else "white"
+        opponent_board = self.board_rep.bitboard_black if colour == "white" else self.board_rep.bitboard_white
         if moved_piece == 'pawn' and target_square == ep_square_before_move:
             captured_pawn_square = (target_square >> 8) if colour == "white" else (target_square << 8)
             self.unset_bit(captured_pawn_square, 'pawn', opponent_colour)
@@ -101,8 +116,13 @@ class MoveHandler:
                 if target_square == 1<<56: self.board_rep.castling_black[1] = False
                 if target_square == 1<<63: self.board_rep.castling_black[0] = False
 
+    def _update_game_state(self,move,moved_piece,colour):
+        source_square,target_square = move
+
         if moved_piece == "pawn" and abs(conversions.square_to_index(source_square) - conversions.square_to_index(target_square)) == 16:
-            self.en_passant_square = (source_square << 8) if colour == "white" else (source_square >> 8)
+            self.board_rep.en_passant_square = (source_square << 8) if colour == "white" else (source_square >> 8)
+        else:
+            self.board_rep.en_passant_square = 0
 
         if moved_piece == 'king':
             if colour == 'white':
@@ -121,16 +141,6 @@ class MoveHandler:
                     self.board_rep.castling_black[1] = False
                 elif source_square == 1<<63:
                     self.board_rep.castling_black[0] = False
-
-        is_castle = moved_piece == 'king' and abs(conversions.square_to_index(source_square) - conversions.square_to_index(target_square)) == 2
-        if is_castle:
-            self.make_castle(move, colour)
-
-        # Move piece
-        self.unset_bit(source_square, moved_piece, colour)
-        self.set_bit(target_square, moved_piece, colour)
-
-        return unmake_info
 
     def make_castle(self, move, colour):
         source_square,target_square = move
