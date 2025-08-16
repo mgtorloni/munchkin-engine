@@ -27,107 +27,7 @@ class BoardRep:
         self.castling_black = [True,True]
 
         self.en_passant_square = 0 #Stores the target square for potential EP capture
-    
-    def unset_bit(self,square:int,piece:str,colour = "white"):
-        if colour.lower() == "white": 
-            self.bitboard_white[piece] &= ~square
-            return self.bitboard_white
-
-        elif colour.lower() == "black":
-            self.bitboard_black[piece] &= ~square
-            return self.bitboard_black
-
-    def set_bit(self,square:int, piece: str,colour="white") -> int:
-        """Set piece on a bit"""
-
-        if colour.lower() == "white": 
-            self.bitboard_white[piece] |= square
-            return self.bitboard_white
-
-        elif colour.lower() == "black":
-            self.bitboard_black[piece] |= square
-            return self.bitboard_black
-        else:
-            raise ValueError("Color must be either 'white' or 'black'")
-
-    def make_move(self, move: tuple, moved_piece:str, colour: str):
-        source_square,target_square = move
-
-        unmake_info = {
-            "white": copy.deepcopy(self.bitboard_white),
-            "black": copy.deepcopy(self.bitboard_black),
-            "en_passant_square": copy.copy(self.en_passant_square),
-            "castling_white": copy.deepcopy(self.castling_white),
-            "castling_black": copy.deepcopy(self.castling_black)
-        }
-
-        opponent_colour = "black" if colour=="white" else "white"
-        opponent_board = self.bitboard_black if colour == "white" else self.bitboard_white
-
-
-        ep_square_before_move = self.en_passant_square
-        self.en_passant_square = 0
-
-        if moved_piece == 'pawn' and target_square == ep_square_before_move:
-            captured_pawn_square = (target_square >> 8) if colour == "white" else (target_square << 8)
-            self.unset_bit(captured_pawn_square, 'pawn', opponent_colour)
-        else: 
-            captured_piece = next((p for p, bb in opponent_board.items() if bb & target_square), None)
-            if captured_piece:
-                self.unset_bit(target_square, captured_piece, opponent_colour)
-
-                #if one of the rooks has been captured, castling on that side is not allowed anymore
-                if target_square == 1: self.castling_white[1] = False
-                if target_square == 1<<7: self.castling_white[0] = False
-
-                if target_square == 1<<56: self.castling_black[1] = False
-                if target_square == 1<<63: self.castling_black[0] = False
-
-        if moved_piece == "pawn" and abs(conversions.square_to_index(source_square) - conversions.square_to_index(target_square)) == 16:
-            self.en_passant_square = (source_square << 8) if colour == "white" else (source_square >> 8)
-
-        if moved_piece == 'king':
-            if colour == 'white':
-                self.castling_white = [False, False]
-            else:
-                self.castling_black = [False, False]
-
-        if moved_piece == 'rook':
-            if colour == 'white':
-                if source_square == 1: #a1 rook
-                    self.castling_white[1] = False
-                elif source_square == 1<<7:
-                    self.castling_white[0] = False
-            if colour == 'black':
-                if source_square == 1<<56:
-                    self.castling_black[1] = False
-                elif source_square == 1<<63:
-                    self.castling_black[0] = False
-
-        is_castle = moved_piece == 'king' and abs(conversions.square_to_index(source_square) - conversions.square_to_index(target_square)) == 2
-        if is_castle:
-            # king-side castle
-            if target_square > source_square:
-                rook_start_square = target_square << 1
-                rook_end_square = target_square >> 1
-            # Queen-side castle
-            else:
-                rook_start_square = target_square >> 2
-                rook_end_square = target_square << 1
-
-            self.unset_bit(rook_start_square, 'rook', colour)
-            self.set_bit(rook_end_square, 'rook', colour)
-
-        self.unset_bit(source_square, moved_piece, colour)
-        self.set_bit(target_square, moved_piece, colour)
-        return unmake_info
-
-    def unmake_move(self, unmake_info: dict):
-        self.bitboard_white = unmake_info["white"]
-        self.bitboard_black = unmake_info["black"]
-        self.en_passant_square = unmake_info["en_passant_square"]
-        self.castling_white = unmake_info["castling_white"]
-        self.castling_black = unmake_info["castling_black"]
+   
 
     def initial_position(self)->tuple[dict,dict]:
         """Set initial positions of pieces on the chess board"""
@@ -142,10 +42,122 @@ class BoardRep:
 
         return (self.bitboard_white,self.bitboard_black)
 
+class MoveHandler:
+    def __init__(self, boardrep: BoardRep):
+        self.board_rep = boardrep
+    
+    def unset_bit(self,square:int,piece:str,colour = "white"):
+        if colour.lower() == "white": 
+            self.board_rep.bitboard_white[piece] &= ~square
+            return self.board_rep.bitboard_white
+
+        elif colour.lower() == "black":
+            self.board_rep.bitboard_black[piece] &= ~square
+            return self.board_rep.bitboard_black
+
+    def set_bit(self,square:int, piece: str,colour="white") -> int:
+        """Set piece on a bit"""
+
+        if colour.lower() == "white": 
+            self.board_rep.bitboard_white[piece] |= square
+            return self.board_rep.bitboard_white
+
+        elif colour.lower() == "black":
+            self.board_rep.bitboard_black[piece] |= square
+            return self.board_rep.bitboard_black
+        else:
+            raise ValueError("Color must be either 'white' or 'black'") 
+
+    def make_move(self, move: tuple, moved_piece:str, colour: str):
+        source_square,target_square = move
+
+        unmake_info = {
+            "white": copy.deepcopy(self.board_rep.bitboard_white),
+            "black": copy.deepcopy(self.board_rep.bitboard_black),
+            "en_passant_square": copy.copy(self.board_rep.en_passant_square),
+            "castling_white": copy.deepcopy(self.board_rep.castling_white),
+            "castling_black": copy.deepcopy(self.board_rep.castling_black)
+        }
+
+        opponent_colour = "black" if colour=="white" else "white"
+        opponent_board = self.board_rep.bitboard_black if colour == "white" else self.board_rep.bitboard_white
+
+
+        ep_square_before_move = self.board_rep.en_passant_square
+        self.board_rep.en_passant_square = 0
+
+        if moved_piece == 'pawn' and target_square == ep_square_before_move:
+            captured_pawn_square = (target_square >> 8) if colour == "white" else (target_square << 8)
+            self.unset_bit(captured_pawn_square, 'pawn', opponent_colour)
+        else: 
+            captured_piece = next((p for p, bb in opponent_board.items() if bb & target_square), None)
+            if captured_piece:
+                self.unset_bit(target_square, captured_piece, opponent_colour)
+
+                #if one of the rooks has been captured, castling on that side is not allowed anymore
+                if target_square == 1: self.board_rep.castling_white[1] = False
+                if target_square == 1<<7: self.board_rep.castling_white[0] = False
+
+                if target_square == 1<<56: self.board_rep.castling_black[1] = False
+                if target_square == 1<<63: self.board_rep.castling_black[0] = False
+
+        if moved_piece == "pawn" and abs(conversions.square_to_index(source_square) - conversions.square_to_index(target_square)) == 16:
+            self.en_passant_square = (source_square << 8) if colour == "white" else (source_square >> 8)
+
+        if moved_piece == 'king':
+            if colour == 'white':
+                self.board_rep.castling_white = [False, False]
+            else:
+                self.board_rep.castling_black = [False, False]
+
+        if moved_piece == 'rook':
+            if colour == 'white':
+                if source_square == 1: #a1 rook
+                    self.board_rep.castling_white[1] = False
+                elif source_square == 1<<7:
+                    self.board_rep.castling_white[0] = False
+            if colour == 'black':
+                if source_square == 1<<56:
+                    self.board_rep.castling_black[1] = False
+                elif source_square == 1<<63:
+                    self.board_rep.castling_black[0] = False
+
+        is_castle = moved_piece == 'king' and abs(conversions.square_to_index(source_square) - conversions.square_to_index(target_square)) == 2
+        if is_castle:
+            self.make_castle(move, colour)
+
+        # Move piece
+        self.unset_bit(source_square, moved_piece, colour)
+        self.set_bit(target_square, moved_piece, colour)
+
+        return unmake_info
+
+    def make_castle(self, move, colour):
+        source_square,target_square = move
+
+        # king-side castle
+        if target_square > source_square:
+            rook_start_square = target_square << 1
+            rook_end_square = target_square >> 1
+        # Queen-side castle
+        else:
+            rook_start_square = target_square >> 2
+            rook_end_square = target_square << 1
+
+        self.unset_bit(rook_start_square, 'rook', colour)
+        self.set_bit(rook_end_square, 'rook', colour)
+
+    def unmake_move(self, unmake_info: dict):
+        self.board_rep.bitboard_white = unmake_info["white"]
+        self.board_rep.bitboard_black = unmake_info["black"]
+        self.board_rep.en_passant_square = unmake_info["en_passant_square"]
+        self.board_rep.castling_white = unmake_info["castling_white"]
+        self.board_rep.castling_black = unmake_info["castling_black"]
 
 class ValidMoves:
     def __init__(self,boardrep: BoardRep):
         self.board_rep = boardrep
+        self.move_handler = MoveHandler(self.board_rep)
 
         self.FILE_A = 0x0101010101010101
         self.FILE_H = 0x8080808080808080
@@ -370,14 +382,14 @@ class ValidMoves:
                 target_squares = pseudo_legal_moves
                 while target_squares:
                     target = target_squares & -target_squares
-                    unmake_info = self.board_rep.make_move((source, target), piece, colour)
+                    unmake_info = self.move_handler.make_move((source, target), piece, colour)
 
                     king_bb = self.board_rep.bitboard_white["king"] if colour == "white" else self.board_rep.bitboard_black["king"]
                     if not self.is_square_attacked(king_bb, colour):
                         legal_moves.append((source, target))
 
                     # Restore the board and validator to their original state
-                    self.board_rep.unmake_move(unmake_info)
+                    self.move_handler.unmake_move(unmake_info)
 
                     target_squares &= target_squares -1 #move to the next target square
                 #print(target_squares)

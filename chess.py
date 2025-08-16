@@ -1,13 +1,16 @@
 import pygame
-from boardrep import BoardRep,ValidMoves
+from boardrep import BoardRep, ValidMoves, MoveHandler
 import pieces
 import conversions
 import constants
-from functools import partial 
 import munchkin
+import os 
 #------------------INIT-------------------
 WIDTH, HEIGHT = 1280, 960
 SQUARE_SIZE:int = constants.SQUARE_SIZE 
+x = 600
+y = 20 
+os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (x,y)
 
 #-----------------------------------------
 
@@ -54,7 +57,7 @@ def mouse_on_piece(bitboard:dict[str,int]) -> tuple[bool,str]:
             return (True, clicked_square, piece)
     return False, 0, ""
 
-def handle_move(board_rep: BoardRep, legal_moves:list,  colour: int = 0):   
+def handle_move(board_rep: BoardRep, move_handler:MoveHandler, legal_moves:list,  colour: int = 0):   
     on_piece_result = mouse_on_piece(board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black)
     if not on_piece_result[0]:
         return False
@@ -66,7 +69,7 @@ def handle_move(board_rep: BoardRep, legal_moves:list,  colour: int = 0):
             move = (source_square,target_square)
 
             if move in legal_moves:
-                board_rep.make_move(move = move,moved_piece = piece_moved, colour = colour)
+                move_handler.make_move(move = move,moved_piece = piece_moved, colour = colour)
                 return True
             else:
                 return False
@@ -74,6 +77,7 @@ def handle_move(board_rep: BoardRep, legal_moves:list,  colour: int = 0):
     
 def main():
     b = BoardRep()
+    move_handler = MoveHandler(b)
     b.initial_position()
 
     running, turn = True, 0  # 0 = white, 1 = black
@@ -124,7 +128,7 @@ def main():
             
             # Handle human move only if it's not the AI's turn
             if not is_ai_turn and event.type == pygame.MOUSEBUTTONDOWN:
-                move_made = handle_move(b, legal_moves=current_legal_moves, colour=current_player_colour)
+                move_made = handle_move(b,move_handler, legal_moves=current_legal_moves, colour=current_player_colour)
 
         if move_made:
             turn ^= 1 # flip after a legal move
