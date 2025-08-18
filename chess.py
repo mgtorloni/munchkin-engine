@@ -9,7 +9,7 @@ import os
 WIDTH, HEIGHT = 1280, 960
 SQUARE_SIZE:int = constants.SQUARE_SIZE 
 x = 600
-y = 20 
+y = 30 
 os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (x,y)
 
 #-----------------------------------------

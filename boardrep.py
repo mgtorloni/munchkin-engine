@@ -327,7 +327,6 @@ class ValidMoves:
         if rook_bitboard ==0:
             return 0
 
-        
         own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
 
         index = conversions.square_to_index(rook_bitboard)
@@ -388,7 +387,6 @@ class ValidMoves:
             while source_squares:
                 source = source_squares & -source_squares
                 pseudo_legal_moves = attack_functions[piece](source,colour)
-
                 target_squares = pseudo_legal_moves
                 while target_squares:
                     target = target_squares & -target_squares
@@ -403,7 +401,7 @@ class ValidMoves:
 
                     target_squares &= target_squares -1 #move to the next target square
                 #print(target_squares)
-                source_squares &= source_squares - 1
+                source_squares &= source_squares - 1 #move to the next source square (which might still be the same piece)
         #print("==============================================")
         return legal_moves
 
