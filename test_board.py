@@ -3,17 +3,6 @@ from boardrep import BoardRep, ValidMoves, MoveHandler
 import munchkin
 import conversions
 
-@pytest.fixture
-def board_factory():
-    def _create_board():
-        return BoardRep() 
-    return _create_board
-
-@pytest.fixture
-def validator_factory():
-    def _create_validator(board):
-        return ValidMoves(board)
-    return _create_validator
 
 @pytest.mark.parametrize("square, blocked, colour, expected_moves", [
     ("e2", False, "white", ("e3", "e4")), 
@@ -43,11 +32,11 @@ def validator_factory():
     ("b6", True, "black", ()),
     ("g4", True, "black", ()),
 ])
-def test_pawn_forward_moves(square,blocked, colour, expected_moves, board_factory, validator_factory):
+def test_pawn_forward_moves(square, blocked, colour, expected_moves):
 
-    board_rep = board_factory()
+    board_rep = BoardRep()
     move_handler = MoveHandler(board_rep)
-    validator = validator_factory(board_rep)
+    validator = ValidMoves(board_rep)
 
 
     move_handler.set_bit(
@@ -99,11 +88,11 @@ def test_pawn_forward_moves(square,blocked, colour, expected_moves, board_factor
     ("f2", ("e1",), "black", ("g1",)),       # e1 is empty, can only capture on g1
 ])
 
-def test_pawn_captures(square, not_squares, colour, expected_moves, board_factory, validator_factory):
+def test_pawn_captures(square, not_squares, colour, expected_moves):
 
-    board_rep = board_factory()
+    board_rep = BoardRep() 
     move_handler = MoveHandler(board_rep)
-    validator = validator_factory(board_rep)
+    validator = ValidMoves(board_rep)
 
     move_handler.set_bit(
         square=conversions.algebraic_to_bitboard(square),
@@ -133,16 +122,78 @@ def test_pawn_captures(square, not_squares, colour, expected_moves, board_factor
     
     assert actual_moves == bitboard_expected_moves 
 
-
-"""
-def test_enpassant(square, en_passant_square, colour, expected_moved, board_factory, validator_factory):
-    board_rep = board_factory()
+@pytest.mark.parametrize("square, blocked_squares, colour, expected_squares", [
+    # Central squares, full movement
+    ("e4", (), "white", ("d2", "f2", "c3", "g3", "c5", "g5", "d6", "f6")),
+    ("d4", (), "black", ("b3", "f3", "b5", "f5", "c2", "e2", "c6", "e6")),
+    
+    # Corner squares, limited movement
+    ("a1", (), "white", ("b3", "c2")),
+    ("a8", (), "black", ("b6", "c7")),
+    ("h1", (), "white", ("f2", "g3")),
+    ("h8", (), "black", ("f7", "g6")),
+    
+    # Edge squares, partially limited
+    ("a4", (), "white", ("b2", "c3", "c5", "b6")),
+    ("h5", (), "black", ("f4", "g3", "g7", "f6")),
+    ("d1", (), "white", ("b2", "f2", "c3", "e3")),
+    ("e8", (), "black", ("c7", "g7", "d6", "f6")),
+    
+    # Near-edge squares
+    ("b2", (), "white", ("a4", "c4", "d1", "d3")),
+    ("g7", (), "black", ("e6", "e8", "f5", "h5")),
+    
+    # Blocked scenarios, some squares occupied
+    ("e4", ("d2", "f6"), "white", ("f2", "c3", "g3", "c5", "g5", "d6")),
+    ("d4", ("b3", "c6", "e2"), "black", ("f3", "b5", "f5", "e6", "c2")),
+    ("c3", ("a2", "e2"), "white", ("a4", "b1", "d1", "e4", "b5", "d5")),
+    
+    # Heavily blocked
+    ("e4", ("d2", "f2", "c3", "g3"), "white", ("c5", "g5", "d6", "f6")),
+    ("d4", ("b3", "f3", "c2", "e2"), "black", ("b5", "f5", "c6", "e6")),
+    
+    # All moves blocked
+    ("e4", ("d2", "f2", "c3", "g3", "c5", "g5", "d6", "f6"), "white", ()),
+    ("d4", ("b3", "f3", "b5", "f5", "c2", "e2", "c6", "e6"), "black", ()),
+    
+    # Edge cases with blocking
+    ("a1", ("b3",), "white", ("c2",)),
+    ("a1", ("b3", "c2"), "white", ()),
+    ("h8", ("f7", "g6"), "black", ()),
+    
+    # Single move available
+    ("b1", ("a3", "c3"), "white", ("d2",)),
+    ("g8", ("e7", "h6"), "black", ("f6",)),
+])
+def test_knight_attacks(square, blocked_squares, colour, expected_squares):
+    board_rep = BoardRep()
     move_handler = MoveHandler(board_rep)
-    validator = validator_factory(board_rep)
+    validator = ValidMoves(board_rep)
 
     move_handler.set_bit(
         square=conversions.algebraic_to_bitboard(square),
-        piece="pawn",
+        piece="knight",
         colour=colour
     )
-"""
+    expected_moves = 0 
+    for expected_square in expected_squares:
+        expected_moves |= conversions.algebraic_to_bitboard(expected_square)
+
+    for blocked_square in blocked_squares:
+        move_handler.set_bit(
+            square = conversions.algebraic_to_bitboard(blocked_square),
+            piece="pawn",
+            colour=colour)
+    board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
+    actual_moves = validator.knight_attacks(board["knight"], colour)
+    assert actual_moves==expected_moves
+
+def test_bishop_attacks(square,blocked_squares,colour,expected_squares):
+    board_rep = BoardRep()
+    move_handler = MoveHandler(board_rep)
+    validator = ValidMoves(board_rep)
+    move_handler.set_bit(
+        square = conversions.algebraic_to_bitboard(square),
+        piece = "knight",
+        colour = colour
+    )
