@@ -188,12 +188,213 @@ def test_knight_attacks(square, blocked_squares, colour, expected_squares):
     actual_moves = validator.knight_attacks(board["knight"], colour)
     assert actual_moves==expected_moves
 
-def test_bishop_attacks(square,blocked_squares,colour,expected_squares):
+@pytest.mark.parametrize("square,eat, blocked_squares, colour, expected_squares", [
+    # Central squares, full diagonal movement
+    ("d4",False, (), "white", ("a1", "b2", "c3", "e5", "f6", "g7", "h8", "a7", "b6", "c5", "e3", "f2", "g1")),
+    ("e5",False, (), "black", ("a1", "b2", "c3", "d4", "f6", "g7", "h8", "b8", "c7", "d6", "f4", "g3", "h2")),
+    
+    # Corner squares, limited to one diagonal each
+    ("a1",False, (), "white", ("b2", "c3", "d4", "e5", "f6", "g7", "h8")),
+    ("h8",False, (), "black", ("a1", "b2", "c3", "d4", "e5", "f6", "g7")),
+    ("a8",False, (), "white", ("b7", "c6", "d5", "e4", "f3", "g2", "h1")),
+    ("h1",False, (), "black", ("a8", "b7", "c6", "d5", "e4", "f3", "g2")),
+    
+    # Edge squares
+    ("a4",False, (), "white", ("b3", "c2", "d1", "b5", "c6", "d7", "e8")),
+    ("h5",False, (), "black", ("g4", "f3", "e2", "d1", "g6", "f7", "e8")),
+    ("d1",False, (), "white", ("a4", "b3", "c2", "e2", "f3", "g4", "h5")),
+    ("e8",False, (), "black", ("a4", "b5", "c6", "d7", "f7", "g6", "h5")),
+    
+    # Near corner squares
+    ("b2",False, (), "white", ("a1", "c1", "a3", "c3", "d4", "e5", "f6", "g7", "h8")),
+    ("g7",False, (), "black", ("a1", "b2", "c3", "d4", "e5", "f6", "h8", "f8", "h6")),
+    
+    # Blocked by single piece on each diagonal
+    ("d4",False, ("c3",), "white", ("e5", "f6", "g7", "h8", "a7", "b6", "c5", "e3", "f2", "g1")),
+    ("d4",False, ("e5",), "black", ("a1", "b2", "c3", "a7", "b6", "c5", "e3", "f2", "g1")),
+    ("d4",False, ("c5",), "white", ("a1", "b2", "c3", "e5", "f6", "g7", "h8", "e3", "f2", "g1")),
+    ("d4",False, ("e3",), "black", ("a1", "b2", "c3", "e5", "f6", "g7", "h8","a7","b6","c5")),
+    
+    # Multiple blocks on same diagonal
+    ("d4",False, ("c3", "b2"), "white", ("e5", "f6", "g7", "h8", "a7", "b6", "c5", "e3", "f2", "g1")),
+    ("d4",False, ("e5", "f6"), "black", ("a1", "b2", "c3", "a7", "b6", "c5", "e3", "f2", "g1")),
+    
+    # Blocks on multiple diagonals
+    ("d4",False, ("c3", "e5"), "white", ("a7", "b6", "c5", "e3", "f2", "g1")),
+    ("d4",False, ("c5", "e3"), "black", ("a1", "b2", "c3", "e5", "f6", "g7", "h8")),
+    
+    # Heavy blocking
+    ("d4",False, ("c3", "e5", "c5", "e3"), "white", ()),
+    ("e5",False, ("d4", "f6", "d6", "f4"), "black", ()),
+    
+    # Edge cases, corner with blocking
+    ("a1",False, ("b2",), "white", ()),
+    ("a1",False, ("c3",), "black", ("b2",)),
+    ("h8",False, ("g7", "f6"), "white", ()),
+    
+    ("b2",False, ("a1", "c3"), "white", ("c1", "a3")),
+    ("g2",False, ("f1", "h1", "f3"), "black", ("h3",)),
+
+    # Blocked by single piece on each diagonal
+    ("d4",True, ("c3",), "white", ("c3","e5", "f6", "g7", "h8", "a7", "b6", "c5", "e3", "f2", "g1")),
+    ("d4",True, ("e5",), "black", ("e5","a1", "b2", "c3", "a7", "b6", "c5", "e3", "f2", "g1")),
+    ("d4",True, ("c5",), "white", ("c5","a1", "b2", "c3", "e5", "f6", "g7", "h8", "e3", "f2", "g1")),
+    ("d4",True, ("e3",), "black", ("e3","a1", "b2", "c3", "e5", "f6", "g7", "h8","a7","b6","c5")),
+    
+    # Multiple blocks on same diagonal
+    ("d4",True, ("c3", "b2"), "white", ("c3", "e5", "f6", "g7", "h8", "a7", "b6", "c5", "e3", "f2", "g1")),
+    ("d4",True, ("e5", "f6"), "black", ("e5","a1", "b2", "c3", "a7", "b6", "c5", "e3", "f2", "g1")),
+    
+    # Blocks on multiple diagonals
+    ("d4",True, ("c3", "e5"), "white", ("c3","e5","a7", "b6", "c5", "e3", "f2", "g1")),
+    ("d4",True, ("c5", "e3"), "black", ("c5","e3","a1", "b2", "c3", "e5", "f6", "g7", "h8")),
+    
+    # Heavy blocking
+    ("d4",True, ("c3", "e5", "c5", "e3"), "white", ("c3", "e5", "c5", "e3")),
+    ("e5",True, ("d4", "f6", "d6", "f4"), "black", ("d4", "f6", "d6", "f4")),
+    
+    # Edge cases, corner with blocking
+    ("a1",True, ("b2",), "white", ("b2",)),
+    ("a1",True, ("c3",), "black", ("b2","c3")),
+    ("h8",True, ("g7", "f6"), "white", ("g7",)),
+    
+    ("b2",True, ("a1", "c3"), "white", ("a1","c3","c1", "a3")),
+    ("g2",True, ("f1", "h1", "f3"), "black", ("f1","h1","f3","h3")),
+
+])
+def test_bishop_attacks(square, eat, blocked_squares,colour,expected_squares):
     board_rep = BoardRep()
     move_handler = MoveHandler(board_rep)
     validator = ValidMoves(board_rep)
+    opposite_colour = "white" if colour == "black" else "black"
+
     move_handler.set_bit(
         square = conversions.algebraic_to_bitboard(square),
-        piece = "knight",
+        piece = "bishop",
         colour = colour
     )
+    expected_moves = 0 
+    for expected_square in expected_squares:
+        expected_moves |= conversions.algebraic_to_bitboard(expected_square)
+        
+    for blocked_square in blocked_squares:
+        move_handler.set_bit(
+            square= conversions.algebraic_to_bitboard(blocked_square),
+            piece = "pawn",
+            colour = colour if eat == False else opposite_colour) #i.e. if we want the piece at the blocked square to be eaten we should make it the opposite_colour
+    board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
+    actual_moves = validator.bishop_attacks(board["bishop"], colour)
+    assert actual_moves==expected_moves
+
+@pytest.mark.parametrize("square,eat, blocked_squares, colour, expected_squares", [
+    # Central squares - full horizontal and vertical movement
+    ("d4", False, (), "white", ("d1", "d2", "d3", "d5", "d6", "d7", "d8", "a4", "b4", "c4", "e4", "f4", "g4", "h4")),
+    ("e5", False, (), "black", ("e1", "e2", "e3", "e4", "e6", "e7", "e8", "a5", "b5", "c5", "d5", "f5", "g5", "h5")),
+    
+    # Corner squares - two directions available
+    ("a1", False, (), "white", ("a2", "a3", "a4", "a5", "a6", "a7", "a8", "b1", "c1", "d1", "e1", "f1", "g1", "h1")),
+    ("h8", False, (), "black", ("h1", "h2", "h3", "h4", "h5", "h6", "h7", "a8", "b8", "c8", "d8", "e8", "f8", "g8")),
+    ("a8", False, (), "white", ("a1", "a2", "a3", "a4", "a5", "a6", "a7", "b8", "c8", "d8", "e8", "f8", "g8", "h8")),
+    ("h1", False, (), "black", ("h2", "h3", "h4", "h5", "h6", "h7", "h8", "a1", "b1", "c1", "d1", "e1", "f1", "g1")),
+    
+    # Edge squares - three directions available
+    ("a4", False, (), "white", ("a1", "a2", "a3", "a5", "a6", "a7", "a8", "b4", "c4", "d4", "e4", "f4", "g4", "h4")),
+    ("h5", False, (), "black", ("h1", "h2", "h3", "h4", "h6", "h7", "h8", "a5", "b5", "c5", "d5", "e5", "f5", "g5")),
+    ("d1", False, (), "white", ("d2", "d3", "d4", "d5", "d6", "d7", "d8", "a1", "b1", "c1", "e1", "f1", "g1", "h1")),
+    ("e8", False, (), "black", ("e1", "e2", "e3", "e4", "e5", "e6", "e7", "a8", "b8", "c8", "d8", "f8", "g8", "h8")),
+    
+    # Middle edge squares
+    ("b2", False, (), "white", ("b1", "b3", "b4", "b5", "b6", "b7", "b8", "a2", "c2", "d2", "e2", "f2", "g2", "h2")),
+    ("g7", False, (), "black", ("g1", "g2", "g3", "g4", "g5", "g6", "g8", "a7", "b7", "c7", "d7", "e7", "f7", "h7")),
+    
+    # Single blocks - vertical direction blocked
+    ("d4", False, ("d3",), "white", ("d5", "d6", "d7", "d8", "a4", "b4", "c4", "e4", "f4", "g4", "h4")),
+    ("d4", False, ("d5",), "black", ("d1", "d2", "d3", "a4", "b4", "c4", "e4", "f4", "g4", "h4")),
+    ("d4", False, ("d2",), "white", ("d3", "d5", "d6", "d7", "d8", "a4", "b4", "c4", "e4", "f4", "g4", "h4")),
+    ("d4", False, ("d6",), "black", ("d1", "d2", "d3", "d5", "a4", "b4", "c4", "e4", "f4", "g4", "h4")),
+    
+    # Single blocks - horizontal direction blocked
+    ("d4", False, ("c4",), "white", ("d1", "d2", "d3", "d5", "d6", "d7", "d8", "e4", "f4", "g4", "h4")),
+    ("d4", False, ("e4",), "black", ("d1", "d2", "d3", "d5", "d6", "d7", "d8", "a4", "b4", "c4")),
+    ("d4", False, ("b4",), "white", ("d1", "d2", "d3", "d5", "d6", "d7", "d8", "c4", "e4", "f4", "g4", "h4")),
+    ("d4", False, ("f4",), "black", ("d1", "d2", "d3", "d5", "d6", "d7", "d8", "a4", "b4", "c4", "e4")),
+    
+    # Multiple blocks on same rank/file
+    ("d4", False, ("d3", "d2"), "white", ("d5", "d6", "d7", "d8", "a4", "b4", "c4", "e4", "f4", "g4", "h4")),
+    ("d4", False, ("d5", "d6"), "black", ("d1", "d2", "d3", "a4", "b4", "c4", "e4", "f4", "g4", "h4")),
+    ("d4", False, ("c4", "b4"), "white", ("d1", "d2", "d3", "d5", "d6", "d7", "d8", "e4", "f4", "g4", "h4")),
+    ("d4", False, ("e4", "f4"), "black", ("d1", "d2", "d3", "d5", "d6", "d7", "d8", "a4", "b4", "c4")),
+    
+    # Blocks on multiple directions
+    ("d4", False, ("d3", "e4"), "white", ("d5", "d6", "d7", "d8", "a4", "b4", "c4")),
+    ("d4", False, ("d5", "c4"), "black", ("d1", "d2", "d3", "e4", "f4", "g4", "h4")),
+    
+    # Heavy blocking
+    ("d4", False, ("d3", "d5", "c4", "e4"), "white", ()),
+    ("e5", False, ("e4", "e6", "d5", "f5"), "black", ()),
+    
+    
+    # Edge cases, corner with blocking
+    ("a1", False, ("a2",), "white", ("b1", "c1", "d1", "e1", "f1", "g1", "h1")),
+    ("a1", False, ("b1",), "black", ("a2", "a3", "a4", "a5", "a6", "a7", "a8")),
+    ("h8", False, ("h7", "g8"), "white", ()),
+    
+    # No move corner
+    ("a1", False, ("a2", "b1"), "white", ()),
+    ("h8", False, ("h7", "g8", "h6", "f8"), "black", ()),
+    
+    # EATING TESTS - when eat=True, blocked squares become capturable
+    
+    # Single capture - vertical direction
+    ("d4", True, ("d3",), "white", ("d3","d5", "d6", "d7", "d8", "a4", "b4", "c4", "e4", "f4", "g4", "h4")),
+    ("d4", True, ("d5",), "black", ("d5", "d1", "d2", "d3", "a4", "b4", "c4", "e4", "f4", "g4", "h4")),
+    
+    # Single capture - horizontal direction
+    ("d4", True, ("c4",), "white", ("c4", "d1", "d2", "d3", "d5", "d6", "d7", "d8", "e4", "f4", "g4", "h4")),
+    ("d4", True, ("e4",), "black", ("e4", "d1", "d2", "d3", "d5", "d6", "d7", "d8", "a4", "b4", "c4")),
+    
+    # Multiple captures on same direction
+    ("d4", True, ("d3", "d2"), "white", ("d3", "d5", "d6", "d7", "d8", "a4", "b4", "c4", "e4", "f4", "g4", "h4")),
+    ("d4", True, ("e4", "f4"), "black", ("e4", "d1", "d2", "d3", "d5", "d6", "d7", "d8", "a4", "b4", "c4")),
+    
+    # Captures on multiple directions
+    ("d4", True, ("d3", "e4"), "white", ("d3", "e4", "d5", "d6", "d7", "d8", "a4", "b4", "c4")),
+    ("d4", True, ("d5", "c4"), "black", ("d5", "c4", "d1", "d2", "d3", "e4", "f4", "g4", "h4")),
+    
+    # All directions with captures
+    ("d4", True, ("d3", "d5", "c4", "e4"), "white", ("d3", "d5", "c4", "e4")),
+    ("e5", True, ("e4", "e6", "d5", "f5"), "black", ("e4", "e6", "d5", "f5")),
+    
+    # Corner captures
+    ("a1", True, ("a2",), "white", ("a2", "b1", "c1", "d1", "e1", "f1", "g1", "h1")),
+    ("a1", True, ("a2", "b1"), "black", ("a2", "b1")),
+    ("h8", True, ("h7", "g8"), "white", ("h7", "g8")),
+    
+    ("b2", True, ("b1", "c2"), "black", ("b1", "c2", "b3", "b4", "b5", "b6", "b7", "b8", "a2")),
+    ("g7", True, ("g8", "f7", "h7"), "white", ("g8", "f7", "h7", "g1", "g2", "g3", "g4", "g5", "g6")),
+])
+def test_rook_attacks(square,eat,blocked_squares,colour,expected_squares):
+    board_rep = BoardRep()
+    move_handler = MoveHandler(board_rep)
+    validator = ValidMoves(board_rep)
+    opposite_colour = "white" if colour == "black" else "black"
+
+    move_handler.set_bit(
+        square = conversions.algebraic_to_bitboard(square),
+        piece = "rook",
+        colour = colour
+    )
+    expected_moves = 0 
+    for expected_square in expected_squares:
+        expected_moves |= conversions.algebraic_to_bitboard(expected_square)
+        
+    for blocked_square in blocked_squares:
+        move_handler.set_bit(
+            square= conversions.algebraic_to_bitboard(blocked_square),
+            piece = "pawn",
+            colour = colour if eat == False else opposite_colour) #i.e. if we want the piece at the blocked square to be eaten we should make it the opposite_colour
+    board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
+    actual_moves = validator.rook_attacks(board["rook"], colour)
+    assert actual_moves==expected_moves
+
+
