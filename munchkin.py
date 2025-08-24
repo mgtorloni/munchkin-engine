@@ -111,17 +111,16 @@ def munchkin_move(board_rep:BoardRep,legal_moves:list, colour = "black"):
 
     #print(f"Legal moves: {legal_moves}")
 
-    best_move = find_best_move(board_rep, move_handler, legal_moves,4,colour)
+    best_move = find_best_move(board_rep, move_handler, legal_moves,3,colour)
 
     source_square, target_square = best_move
     current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
 
-    moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square))
-
-    move_handler.make_move(move = best_move,moved_piece = moved_piece, colour = colour)
+    move_handler.make_move(move = best_move, colour = colour)
 
     return True
 
+"""
 def get_move_priority(move, board_rep, colour, piece_order):
     source, target = move
     current_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
@@ -140,6 +139,7 @@ def get_move_priority(move, board_rep, colour, piece_order):
         attacker_val = piece_order["pawn"]
         return victim_val * 10 - attacker_val
     return 0  # Quiet moves
+"""
 
 def bitboard_to_string(bitboard: int) -> str:
     board_str = ""
@@ -158,68 +158,80 @@ def bitboard_to_string(bitboard: int) -> str:
     board_str += "    A B C D E F G H\n"
     return board_str
 
-def alphaBetaMax(board_rep,move_handler,alpha,beta,depth,values,tables,colour):
+def minimax(board_rep,move_handler,alpha,beta,depth,values,tables,colour):
     if depth == 0:
         return evaluate_board(board_rep.bitboard_white,board_rep.bitboard_black,values,tables)
     validator = ValidMoves(board_rep)
     legal_moves = validator.generate_all_legal_moves(colour)
-        
     if not legal_moves:
         king_pos = board_rep.bitboard_white["king"] if colour == "white" else board_rep.bitboard_black["king"]
         if validator.is_square_attacked(king_pos,colour):
-            sign = -1 if colour == "white" else 1
-            return sign*np.inf + sign*depth
-        else: return 0
+            return -values.king
+        else:
+            return 0
 
     current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
     opponent_colour = "black" if colour == "white" else "white"
 
-    best_value = -np.inf
-    for move in legal_moves:
-        source_square,_ = move
-        moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square))
-        unmake_info = move_handler.make_move(move,moved_piece,colour)
-        score = alphaBetaMin(board_rep,move_handler,alpha,beta-1,depth,values,tables,opponent_colour)
-        move_handler.unmake_move(unmake_info)
-        if score>best_value:
-            best_value = alpha
-            if score>alpha:
-                alpha = score
-        if score>=beta:
-            return score
-    return best_value
+    if colour == "white":
+        value = -np.inf
+        for move in legal_moves:
+            source_square,_ = move
 
-def alphaBetaMin(board_rep,move_handler,alpha,beta,depth,values,tables,colour):
-    if depth == 0:
-        return -evaluate_board(board_rep.bitboard_white,board_rep.bitboard_black,values,tables)
-    validator = ValidMoves(board_rep)
-    legal_moves = validator.generate_all_legal_moves(colour)
+            unmake_info = move_handler.make_move(move,colour)
+            value = max(value,minimax(board_rep,move_handler,alpha,beta,depth-1,values,tables,opponent_colour))
+            move_handler.unmake_move(unmake_info)
+            if value >= beta:
+                break
+            alpha = max(alpha, value)
+            
+
+        return value
+
+    else:
+        value = np.inf
+        for move in legal_moves:
+            source_square,_ = move
+            moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square),None)
+
+            if not moved_piece:
+                continue
+            unmake_info = move_handler.make_move(move,colour)
+            value = min(value,minimax(board_rep,move_handler,alpha,beta,depth-1,values,tables,opponent_colour))
+            move_handler.unmake_move(unmake_info)
+            if value <= alpha:
+                break
+            beta = min(beta, value)
+
+        return value
+
+
+def score_move(board_rep,legal_moves,move_handler,values,tables,colour,alpha,beta,best_move,best_score,depth):
+    for move in legal_moves:
+        source_square, target_square = move
+        current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
         
-    if not legal_moves:
-        king_pos = board_rep.bitboard_white["king"] if colour == "white" else board_rep.bitboard_black["king"]
-        if validator.is_square_attacked(king_pos,colour):
-            sign = -1 if colour == "white" else 1
-            return sign*np.inf + sign*depth
-        else: return 0
-
-    current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
-    opponent_colour = "black" if colour == "white" else "white"
-
-    best_value = np.inf
-    for move in legal_moves:
-        source_square,_ = move
         moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square))
-        unmake_info = move_handler.make_move(move,moved_piece,colour)
-        score = alphaBetaMax(board_rep,move_handler,alpha,beta,depth-1,values,tables,opponent_colour)
-        move_handler.unmake_move(unmake_info)
-        if score<best_value:
-            best_value = alpha
-            if score<beta:
-                beta = score
-        if score>=beta:
-            return score
-    return best_value
 
+        unmake_info = move_handler.make_move(move, colour)
+        opponent_colour = "black" if colour == "white" else "white"
+        score = minimax(board_rep, move_handler,alpha,beta,depth, values, tables, opponent_colour)
+        print(f"Move: {conversions.square_to_algebraic(source_square)}, {conversions.square_to_algebraic(target_square)} ({moved_piece}), Score: {score}")
+        move_handler.unmake_move(unmake_info)
+        if colour == "white":
+            if score > best_score:
+                best_score = score
+                best_move = move
+
+        else:
+            if score < best_score:
+                best_score = score
+                best_move = move
+    return best_score,best_move
+
+def partition(lst, size):
+    for i in range(0, len(lst) // size):
+        yield lst[i :: size]
 
 def find_best_move(board_rep, move_handler, legal_moves, depth, colour):
     values = PieceValue()
@@ -230,32 +242,14 @@ def find_best_move(board_rep, move_handler, legal_moves, depth, colour):
 
     best_move = None
     best_score = -np.inf if colour == "white" else np.inf
+    
+    partitioned_list = list(partition(legal_moves,4))
+    print(partitioned_list)
 
-    #legal_moves.sort(key=lambda m: get_move_priority(m, board_rep, colour, piece_order), reverse=True)
-    function = alphaBetaMax if colour == "white" else alphaBetaMin
-    for move in legal_moves:
-        
-        source_square, target_square = move
-        current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
-        
-        moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square))
+    best_score,best_move = score_move(board_rep,legal_moves,move_handler,values,tables,colour,alpha,beta,best_move,best_score,depth)   
+    #For each concurrent task I need a deepcopy of board_rep, and then I pass it and it is okay I think so that we don't get board corruption
 
-        unmake_info = move_handler.make_move(move, moved_piece, colour)
-
-        opponent_colour = "black" if colour == "white" else "white"
-        score = function(board_rep, move_handler,alpha,beta,depth-1, values, tables, opponent_colour)
-        print(f"Move: {conversions.square_to_algebraic(source_square)}, {conversions.square_to_algebraic(target_square)} ({moved_piece}), Score: {score}")
-        move_handler.unmake_move(unmake_info)
-
-        if colour == "white":
-            if score > best_score:
-                best_score = score
-                best_move = move
-
-        else:
-            if score < best_score:
-                best_score = score
-                best_move = move
+       
 
     print(f"Munchkin found best move: {best_move[0]},{best_move[1]} with score: {best_score}")
     return best_move

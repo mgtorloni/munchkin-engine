@@ -68,8 +68,10 @@ class MoveHandler:
         else:
             raise ValueError("Color must be either 'white' or 'black'") 
 
-    def make_move(self, move: tuple, moved_piece:str, colour: str):
+    def make_move(self, move: tuple,colour: str):
         source_square,target_square = move
+        current_player_board = self.board_rep.bitboard_white if colour=="white" else self.board_rep.bitboard_black 
+        moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square))
 
         unmake_info = {
             "white": copy.deepcopy(self.board_rep.bitboard_white),
@@ -390,7 +392,7 @@ class ValidMoves:
                 target_squares = pseudo_legal_moves
                 while target_squares:
                     target = target_squares & -target_squares
-                    unmake_info = self.move_handler.make_move((source, target), piece, colour)
+                    unmake_info = self.move_handler.make_move((source, target), colour)
 
                     king_bb = self.board_rep.bitboard_white["king"] if colour == "white" else self.board_rep.bitboard_black["king"]
                     if not self.is_square_attacked(king_bb, colour):
