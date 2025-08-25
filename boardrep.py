@@ -42,6 +42,111 @@ class BoardRep:
 
         return (self.bitboard_white,self.bitboard_black)
 
+    def to_fen(self, colour_to_move: str) -> str:
+        piece_to_char = {
+            "pawn": 'p', "knight": 'n', "bishop": 'b',
+            "rook": 'r', "queen": 'q', "king": 'k'
+        }
+        
+        fen = ""
+        for r in range(7, -1, -1):
+            empty = 0
+            for f in range(8):
+                square_index = r * 8 + f
+                square_bb = 1 << square_index
+                
+                char_found = None
+                
+                # Check white pieces
+                for piece_name, bb in self.bitboard_white.items():
+                    if bb & square_bb:
+                        char_found = piece_to_char[piece_name].upper()
+                        break
+                
+                # Check black pieces if no white piece was found
+                if not char_found:
+                    for piece_name, bb in self.bitboard_black.items():
+                        if bb & square_bb:
+                            char_found = piece_to_char[piece_name].lower()
+                            break
+
+                if char_found:
+                    if empty > 0:
+                        fen += str(empty)
+                        empty = 0
+                    fen += char_found
+                else:
+                    empty += 1
+            
+            if empty > 0:
+                fen += str(empty)
+            if r > 0:
+                fen += '/'
+
+        # Active color
+        fen += ' w' if colour_to_move == "white" else ' b'
+
+        # Castling rights
+        castling = ""
+        if self.castling_white[0]: castling += 'K'
+        if self.castling_white[1]: castling += 'Q'
+        if self.castling_black[0]: castling += 'k'
+        if self.castling_black[1]: castling += 'q'
+        fen += f" {castling if castling else '-'}"
+
+        # En passant square
+        if self.en_passant_square == 0:
+            fen += ' -'
+        else:
+            fen += f" {conversions.square_to_algebraic(self.en_passant_square)}"
+
+        # Halfmove and fullmove counters
+        fen += ' 0 1'
+        return fen
+
+    def from_fen(self, fen: str):
+        """Sets the board state from a FEN string."""
+        self.bitboard_white = {p: 0 for p in self.bitboard_white}
+        self.bitboard_black = {p: 0 for p in self.bitboard_black}
+
+        parts = fen.split(' ')
+        board_part = parts[0]
+        
+        rank = 7
+        file = 0
+        for char in board_part:
+            if char == '/':
+                rank -= 1
+                file = 0
+            elif char.isdigit():
+                file += int(char)
+            else:
+                square_index = rank * 8 + file
+                square_bb = 1 << square_index
+                
+                piece_map = {'P': 'pawn', 'N': 'knight', 'B': 'bishop', 'R': 'rook', 'Q': 'queen', 'K': 'king'}
+                piece_type = piece_map[char.upper()]
+
+                if char.isupper():
+                    self.bitboard_white[piece_type] |= square_bb
+                else:
+                    self.bitboard_black[piece_type] |= square_bb
+                file += 1
+
+        # Castling rights
+        castling_part = parts[2]
+        self.castling_white = ['K' in castling_part, 'Q' in castling_part]
+        self.castling_black = ['k' in castling_part, 'q' in castling_part]
+
+        # En passant
+        ep_part = parts[3]
+        if ep_part == '-':
+            self.en_passant_square = 0
+        else:
+            self.en_passant_square = conversions.algebraic_to_bitboard(ep_part)
+
+        return parts[1] # Return the color to move
+
 class MoveHandler:
     def __init__(self, boardrep: BoardRep):
         self.board_rep = boardrep

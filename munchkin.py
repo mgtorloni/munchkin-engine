@@ -115,7 +115,7 @@ def munchkin_move(board_rep:BoardRep,legal_moves:list, colour = "black"):
 
     #print(f"Legal moves: {legal_moves}")
 
-    best_move = find_best_move(board_rep, legal_moves,4,colour)
+    best_move = find_best_move(board_rep, legal_moves,5,colour)
 
     source_square, target_square = best_move
     current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
@@ -210,28 +210,38 @@ def minimax(board_rep,move_handler,alpha,beta,depth,values,tables,colour):
         return value
 
 
-def score_move(board_rep, move_handler, legal_moves,values,tables,colour,alpha,beta,best_move,best_score,depth):
-    for move in legal_moves:
-        source_square, target_square = move
-        current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
-        
-        moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square))
+def score_move(fen_string: str, moves_to_check: list, depth: int, colour: str):
+    board_rep = BoardRep()
+    board_rep.from_fen(fen_string)
+    move_handler = MoveHandler(board_rep)
 
+    values = PieceValue()
+    tables = PieceTable()
+    alpha = -np.inf
+    beta = np.inf
+    
+    best_move_local = None
+    best_score_local = -np.inf if colour == "white" else np.inf
+    opponent_colour = "black" if colour == "white" else "white"
+
+    for move in moves_to_check:
         unmake_info = move_handler.make_move(move, colour)
-        opponent_colour = "black" if colour == "white" else "white"
-        score = minimax(board_rep, move_handler,alpha,beta,depth, values, tables, opponent_colour)
-        print(f"Move: {conversions.square_to_algebraic(source_square)}, {conversions.square_to_algebraic(target_square)} ({moved_piece}), Score: {score}")
+        score = minimax(board_rep, move_handler, alpha, beta, depth - 1, values, tables, opponent_colour)
         move_handler.unmake_move(unmake_info)
+        print(f"Move: {conversions.square_to_algebraic(move[0])}, {conversions.square_to_algebraic(move[1])}, Score: {score}")
+        
         if colour == "white":
-            if score > best_score:
-                best_score = score
-                best_move = move
-
-        else:
-            if score < best_score:
-                best_score = score
-                best_move = move
-    return best_score,best_move
+            if score > best_score_local:
+                best_score_local = score
+                best_move_local = move
+            alpha = max(alpha, score)
+        else: # Black
+            if score < best_score_local:
+                best_score_local = score
+                best_move_local = move
+            beta = min(beta, score)
+            
+    return best_score_local, best_move_local
 
 def partition_lst(lst, n):
     length = len(lst)
@@ -239,37 +249,30 @@ def partition_lst(lst, n):
             for i in range(n)]
 
 def find_best_move(board_rep, legal_moves, depth, colour):
-    num_threads = 4
-    values = PieceValue()
-    tables = PieceTable()
-
-    alpha = -np.inf
-    beta = np.inf
-
-    best_move = None
-    best_score = -np.inf if colour == "white" else np.inf
+    num_threads = multiprocessing.cpu_count()
     
-    partitioned_list = partition_lst(legal_moves,num_threads)
+    fen = board_rep.to_fen(colour)
 
-    copies = [copy.deepcopy(board_rep) for _ in range(num_threads)]
-    move_handlers = [MoveHandler(board_copy) for board_copy in copies]
+    partitioned_list = partition_lst(legal_moves, num_threads)
     results = []
-    futures = []
-    with ProcessPoolExecutor(max_workers = num_threads) as executor:
+
+    with ProcessPoolExecutor(max_workers=num_threads) as executor:
         futures = [
-                executor.submit(score_move, board_copy, move_handler, partition,values,tables,colour,alpha,beta,best_move,best_score,depth) 
-                for board_copy,move_handler,partition in zip(copies,move_handlers,partitioned_list)]
+            executor.submit(score_move, fen, partition, depth, colour) 
+            for partition in partitioned_list 
+        ]
 
         for future in futures:
             result = future.result()
-            results.append(result)
+            if result[1] is not None:
+                results.append(result)
 
     if colour == "white":
-        best_score, best_move = max(results, key=lambda x: x[0])
+        best_score, best_move = max(results, key=itemgetter(0))
     else:
-        best_score, best_move = min(results, key=lambda x: x[0])
+        best_score, best_move = min(results, key=itemgetter(0))
 
-    print(f"Munchkin found best move: {best_move[0]},{best_move[1]} with score: {best_score}")
+    print(f"Munchkin found best move: {conversions.square_to_algebraic(best_move[0])}{conversions.square_to_algebraic(best_move[1])} with score: {best_score}")
     return best_move
 
 
