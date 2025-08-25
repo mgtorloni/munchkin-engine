@@ -115,7 +115,7 @@ def munchkin_move(board_rep:BoardRep,legal_moves:list, colour = "black"):
 
     #print(f"Legal moves: {legal_moves}")
 
-    best_move = find_best_move(board_rep, legal_moves,5,colour)
+    best_move = find_best_move(board_rep, legal_moves,4,colour)
 
     source_square, target_square = best_move
     current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
@@ -277,8 +277,7 @@ def find_best_move(board_rep, legal_moves, depth, colour):
 
 
 def evaluate_board(board_white,board_black,values,tables):
-    white_score = 0
-    black_score = 0
+    total_score =0
 
     for piece, bitboard in board_white.items():
         piece_value = getattr(values, piece)
@@ -287,8 +286,8 @@ def evaluate_board(board_white,board_black,values,tables):
         while bb_copy > 0:
             lsb = bb_copy & -bb_copy
             square_index = lsb.bit_length() - 1
-            white_score += piece_value
-            white_score += piece_table[7 - (square_index // 8)][square_index % 8]
+            total_score += piece_value
+            total_score += piece_table[7 - (square_index // 8)][square_index % 8]
             bb_copy &= (bb_copy - 1)
 
     for piece, bitboard in board_black.items():
@@ -299,9 +298,9 @@ def evaluate_board(board_white,board_black,values,tables):
         while bb_copy > 0:
             lsb = bb_copy & -bb_copy
             square_index = lsb.bit_length() - 1
-            black_score += piece_value
-            black_score += piece_table[square_index // 8][square_index % 8]
+            total_score -= piece_value
+            total_score -= piece_table[square_index // 8][square_index % 8]
             bb_copy &= (bb_copy - 1)
     
-    return white_score - black_score
+    return total_score 
 

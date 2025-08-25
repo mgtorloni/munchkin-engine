@@ -397,4 +397,3 @@ def test_rook_attacks(square,eat,blocked_squares,colour,expected_squares):
     actual_moves = validator.rook_attacks(board["rook"], colour)
     assert actual_moves==expected_moves
 
-

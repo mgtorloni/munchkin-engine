@@ -6,7 +6,7 @@ import constants
 import munchkin
 import os 
 #------------------INIT-------------------
-WIDTH, HEIGHT = 1280, 960
+WIDTH, HEIGHT = 960, 960
 SQUARE_SIZE:int = constants.SQUARE_SIZE 
 x = 600
 y = 30 
@@ -139,6 +139,7 @@ def main():
             
             if not current_legal_moves:
                 king_position = b.bitboard_white["king"] if next_player_colour == "white" else b.bitboard_black["king"]
+                
                 if validator.is_square_attacked(king_position, next_player_colour):
                     print(f"CHECKMATE! {opponent_colour.upper()} wins!")
                 else:

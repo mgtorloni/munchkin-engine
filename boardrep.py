@@ -173,18 +173,24 @@ class MoveHandler:
         else:
             raise ValueError("Color must be either 'white' or 'black'") 
 
+    def fast_copy_board(self):
+        new_board = BoardRep()
+        new_board.bitboard_white = self.board_rep.bitboard_white.copy()
+        new_board.bitboard_black = self.board_rep.bitboard_black.copy()
+
+        new_board.castling_white = list(self.board_rep.castling_white)
+        new_board.castling_black = list(self.board_rep.castling_black)
+
+        new_board.en_passant_square = self.board_rep.en_passant_square
+
+        return new_board
+
     def make_move(self, move: tuple,colour: str):
         source_square,target_square = move
         current_player_board = self.board_rep.bitboard_white if colour=="white" else self.board_rep.bitboard_black 
         moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square))
 
-        unmake_info = {
-            "white": copy.deepcopy(self.board_rep.bitboard_white),
-            "black": copy.deepcopy(self.board_rep.bitboard_black),
-            "en_passant_square": copy.copy(self.board_rep.en_passant_square),
-            "castling_white": copy.deepcopy(self.board_rep.castling_white),
-            "castling_black": copy.deepcopy(self.board_rep.castling_black)
-        }
+        unmake_info = self.fast_copy_board()
 
 
         ep_square_before_move = self.board_rep.en_passant_square
@@ -264,12 +270,12 @@ class MoveHandler:
         self.unset_bit(rook_start_square, 'rook', colour)
         self.set_bit(rook_end_square, 'rook', colour)
 
-    def unmake_move(self, unmake_info: dict):
-        self.board_rep.bitboard_white = unmake_info["white"]
-        self.board_rep.bitboard_black = unmake_info["black"]
-        self.board_rep.en_passant_square = unmake_info["en_passant_square"]
-        self.board_rep.castling_white = unmake_info["castling_white"]
-        self.board_rep.castling_black = unmake_info["castling_black"]
+    def unmake_move(self, unmake_info: BoardRep):
+        self.board_rep.bitboard_white = unmake_info.bitboard_white
+        self.board_rep.bitboard_black = unmake_info.bitboard_black
+        self.board_rep.castling_white = unmake_info.castling_white
+        self.board_rep.castling_black = unmake_info.castling_black
+        self.board_rep.en_passant_square = unmake_info.en_passant_square
 
 class ValidMoves:
     def __init__(self,boardrep: BoardRep):
