@@ -3,6 +3,10 @@ import random
 import numpy as np
 from dataclasses import dataclass
 import conversions
+import copy
+import multiprocessing
+from operator import itemgetter
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
 piece_order = {
     "pawn": 1,
@@ -111,7 +115,7 @@ def munchkin_move(board_rep:BoardRep,legal_moves:list, colour = "black"):
 
     #print(f"Legal moves: {legal_moves}")
 
-    best_move = find_best_move(board_rep, move_handler, legal_moves,3,colour)
+    best_move = find_best_move(board_rep, legal_moves,4,colour)
 
     source_square, target_square = best_move
     current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
@@ -206,7 +210,7 @@ def minimax(board_rep,move_handler,alpha,beta,depth,values,tables,colour):
         return value
 
 
-def score_move(board_rep,legal_moves,move_handler,values,tables,colour,alpha,beta,best_move,best_score,depth):
+def score_move(board_rep, move_handler, legal_moves,values,tables,colour,alpha,beta,best_move,best_score,depth):
     for move in legal_moves:
         source_square, target_square = move
         current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
@@ -229,11 +233,13 @@ def score_move(board_rep,legal_moves,move_handler,values,tables,colour,alpha,bet
                 best_move = move
     return best_score,best_move
 
-def partition(lst, size):
-    for i in range(0, len(lst) // size):
-        yield lst[i :: size]
+def partition_lst(lst, n):
+    length = len(lst)
+    return [lst[i * length // n: (i + 1) * length // n]
+            for i in range(n)]
 
-def find_best_move(board_rep, move_handler, legal_moves, depth, colour):
+def find_best_move(board_rep, legal_moves, depth, colour):
+    num_threads = 4
     values = PieceValue()
     tables = PieceTable()
 
@@ -243,13 +249,25 @@ def find_best_move(board_rep, move_handler, legal_moves, depth, colour):
     best_move = None
     best_score = -np.inf if colour == "white" else np.inf
     
-    partitioned_list = list(partition(legal_moves,4))
-    print(partitioned_list)
+    partitioned_list = partition_lst(legal_moves,num_threads)
 
-    best_score,best_move = score_move(board_rep,legal_moves,move_handler,values,tables,colour,alpha,beta,best_move,best_score,depth)   
-    #For each concurrent task I need a deepcopy of board_rep, and then I pass it and it is okay I think so that we don't get board corruption
+    copies = [copy.deepcopy(board_rep) for _ in range(num_threads)]
+    move_handlers = [MoveHandler(board_copy) for board_copy in copies]
+    results = []
+    futures = []
+    with ProcessPoolExecutor(max_workers = num_threads) as executor:
+        futures = [
+                executor.submit(score_move, board_copy, move_handler, partition,values,tables,colour,alpha,beta,best_move,best_score,depth) 
+                for board_copy,move_handler,partition in zip(copies,move_handlers,partitioned_list)]
 
-       
+        for future in futures:
+            result = future.result()
+            results.append(result)
+
+    if colour == "white":
+        best_score, best_move = max(results, key=lambda x: x[0])
+    else:
+        best_score, best_move = min(results, key=lambda x: x[0])
 
     print(f"Munchkin found best move: {best_move[0]},{best_move[1]} with score: {best_score}")
     return best_move
