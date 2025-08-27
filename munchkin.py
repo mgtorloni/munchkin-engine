@@ -162,53 +162,69 @@ def bitboard_to_string(bitboard: int) -> str:
     board_str += "    A B C D E F G H\n"
     return board_str
 
-def minimax(board_rep,move_handler,alpha,beta,depth,values,tables,colour):
+def minimax(board_rep, move_handler, alpha, beta, depth, values, tables, colour):
     if depth == 0:
-        return evaluate_board(board_rep.bitboard_white,board_rep.bitboard_black,values,tables)
-    validator = ValidMoves(board_rep)
-    legal_moves = validator.generate_all_legal_moves(colour)
-    if not legal_moves:
-        king_pos = board_rep.bitboard_white["king"] if colour == "white" else board_rep.bitboard_black["king"]
-        if validator.is_square_attacked(king_pos,colour):
-            return -values.king
-        else:
-            return 0
+        return evaluate_board(board_rep.bitboard_white, board_rep.bitboard_black, values, tables)
 
-    current_player_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
+    validator = ValidMoves(board_rep)
+    pseudo_legal_moves = validator.generate_pseudo_legal_moves(colour)
+    
+    legal_moves_found = 0
     opponent_colour = "black" if colour == "white" else "white"
 
     if colour == "white":
         value = -np.inf
-        for move in legal_moves:
-            source_square,_ = move
+        for move in pseudo_legal_moves:
+            unmake_info = move_handler.make_move(move, colour)
 
-            unmake_info = move_handler.make_move(move,colour)
-            value = max(value,minimax(board_rep,move_handler,alpha,beta,depth-1,values,tables,opponent_colour))
+            king_bb = board_rep.bitboard_white["king"]
+            if validator.is_square_attacked(king_bb, colour):
+                move_handler.unmake_move(unmake_info)  # Illegal move, undo and skip
+                continue
+            
+            legal_moves_found += 1
+            value = max(value, minimax(board_rep, move_handler, alpha, beta, depth - 1, values, tables, opponent_colour))
             move_handler.unmake_move(unmake_info)
+            
             if value >= beta:
                 break
             alpha = max(alpha, value)
-            
-
+        
+        # If no legal moves were found, it's checkmate or stalemate
+        if legal_moves_found == 0:
+            king_bb = board_rep.bitboard_white["king"]
+            if validator.is_square_attacked(king_bb, colour):
+                return -values.king # Checkmate
+            else:
+                return 0 # Stalemate
         return value
 
-    else:
+    else:  # Black's turn
         value = np.inf
-        for move in legal_moves:
-            source_square,_ = move
-            moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square),None)
+        for move in pseudo_legal_moves:
+            unmake_info = move_handler.make_move(move, colour)
 
-            if not moved_piece:
+            king_bb = board_rep.bitboard_black["king"]
+            if validator.is_square_attacked(king_bb, colour):
+                move_handler.unmake_move(unmake_info)  # Illegal move, undo and skip
                 continue
-            unmake_info = move_handler.make_move(move,colour)
-            value = min(value,minimax(board_rep,move_handler,alpha,beta,depth-1,values,tables,opponent_colour))
+            
+            legal_moves_found += 1
+            value = min(value, minimax(board_rep, move_handler, alpha, beta, depth - 1, values, tables, opponent_colour))
             move_handler.unmake_move(unmake_info)
+            
             if value <= alpha:
                 break
             beta = min(beta, value)
-
+        
+        # If no legal moves were found, it's checkmate or stalemate
+        if legal_moves_found == 0:
+            king_bb = board_rep.bitboard_black["king"]
+            if validator.is_square_attacked(king_bb, colour):
+                return values.king # Checkmate (good for white)
+            else:
+                return 0 # Stalemate
         return value
-
 
 def score_move(fen_string: str, moves_to_check: list, depth: int, colour: str):
     board_rep = BoardRep()
