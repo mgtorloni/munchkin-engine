@@ -206,6 +206,7 @@ class MoveHandler:
         opponent_colour = "black" if colour == "white" else "white"
 
         moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square))
+    
         
         captured_piece = next((p for p, bb in opponent_board.items() if bb & target_square), None)
         is_ep_capture = (moved_piece == 'pawn' and target_square == self.board_rep.en_passant_square)
@@ -235,6 +236,12 @@ class MoveHandler:
         if moved_piece == "pawn" and abs(conversions.square_to_index(source_square) - conversions.square_to_index(target_square)) == 16:
             self.board_rep.en_passant_square = (source_square << 8) if colour == "white" else (source_square >> 8)
         
+        is_promotion_square = any(target_square == 1<<i for i in range(55,64)) if colour == "white" else any(target_square==1<<i for i in range(0,8))
+
+        if moved_piece == "pawn" and is_promotion_square:
+            self.unset_bit(target_square,moved_piece,colour) #unset the pawn from the back rank
+            self.set_bit(target_square,"queen",colour) #set a new queen
+
         self._update_castling_rights(source_square, target_square, moved_piece, colour, captured_piece)
         
         is_castle = moved_piece == 'king' and abs(conversions.square_to_index(source_square) - conversions.square_to_index(target_square)) == 2
@@ -242,8 +249,6 @@ class MoveHandler:
             self.make_castle(move, colour)
 
         return unmake_info
-
-
 
     def _handle_captures(self,move, moved_piece,colour, ep_square_before_move):
         _,target_square = move
@@ -333,11 +338,19 @@ class MoveHandler:
         self.board_rep.castling_white = unmake_info.castling_white
         self.board_rep.castling_black = unmake_info.castling_black
 
-        colour = "white" if self.board_rep.bitboard_white[unmake_info.moved_piece] & unmake_info.target_square else "black"
+        colour = "white" if sum(self.board_rep.bitboard_white.values()) & unmake_info.target_square else "black"
         opponent_colour = "black" if colour == "white" else "white"
 
         self.set_bit(unmake_info.source_square, unmake_info.moved_piece, colour)
-        self.unset_bit(unmake_info.target_square, unmake_info.moved_piece, colour)
+
+        is_promotion = (unmake_info.moved_piece=='pawn' and
+                        (unmake_info.target_square & constants.RANK_8 or
+                         unmake_info.target_square & constants.RANK_1))
+
+        if is_promotion:
+            self.unset_bit(unmake_info.target_square,"queen", colour)
+        else:
+            self.unset_bit(unmake_info.target_square, unmake_info.moved_piece, colour)
         
         if unmake_info.captured_piece:
             is_ep_capture = (unmake_info.moved_piece == 'pawn' and unmake_info.target_square == unmake_info.en_passant_square)
