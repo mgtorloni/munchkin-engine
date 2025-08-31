@@ -84,7 +84,7 @@ class PieceTable:
     [-20,-10,-10, -5, -5,-10,-10,-20]
     ])
 
-    king= np.array([
+    king = np.array([
     [-30,-40,-40,-50,-50,-40,-40,-30],
     [-30,-40,-40,-50,-50,-40,-40,-30],
     [-30,-40,-40,-50,-50,-40,-40,-30],
@@ -94,7 +94,7 @@ class PieceTable:
     [20, 20,  0,  0,  0,  0, 20, 20],
     [20, 30, 10,  0,  0, 10, 30, 20]
     ])
-    """
+
     king_end = np.array([
     [-50,-40,-30,-20,-20,-30,-40,-50],
     [-30,-20,-10,  0,  0,-10,-20,-30],
@@ -105,7 +105,6 @@ class PieceTable:
     [-30,-30,  0,  0,  0,  0,-30,-30],
     [-50,-30,-30,-30,-30,-30,-30,-50]
     ])
-    """
 
 def munchkin_move(board_rep:BoardRep,legal_moves:list, colour = "black"):
     move_handler = MoveHandler(board_rep)
@@ -124,43 +123,6 @@ def munchkin_move(board_rep:BoardRep,legal_moves:list, colour = "black"):
 
     return True
 
-"""
-def get_move_priority(move, board_rep, colour, piece_order):
-    source, target = move
-    current_board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
-    moved_piece = next((p for p, bb in current_board.items() if bb & source), None)
-    if not moved_piece:
-        return 0
-    opponent_board = board_rep.bitboard_black if colour == "white" else board_rep.bitboard_white
-    opponent_occupied = sum(opponent_board.values())
-    captured_piece = next((p for p, bb in opponent_board.items() if bb & target), None)
-    if captured_piece:
-        victim_val = piece_order[captured_piece]
-        attacker_val = piece_order[moved_piece]
-        return victim_val * 10 - attacker_val  # MVV-LVA score; all positive for captures
-    elif moved_piece == "pawn" and target == board_rep.en_passant_square:
-        victim_val = piece_order["pawn"]
-        attacker_val = piece_order["pawn"]
-        return victim_val * 10 - attacker_val
-    return 0  # Quiet moves
-"""
-
-def bitboard_to_string(bitboard: int) -> str:
-    board_str = ""
-    for rank in range(7, -1, -1):
-        board_str += f"{rank + 1} | "
-        for file in range(8):
-            square_index = rank * 8 + file
-            square_bit = 1<<square_index
-            
-            if bitboard & square_bit:
-                board_str += "X "
-            else:
-                board_str += ". "
-        board_str += "\n"
-    board_str += "  +-----------------\n"
-    board_str += "    A B C D E F G H\n"
-    return board_str
 
 def minimax(board_rep, move_handler, alpha, beta, depth, values, tables, colour):
     if depth == 0:
@@ -194,7 +156,7 @@ def minimax(board_rep, move_handler, alpha, beta, depth, values, tables, colour)
         if legal_moves_found == 0:
             king_bb = board_rep.bitboard_white["king"]
             if validator.is_square_attacked(king_bb, colour):
-                return -values.king # Checkmate
+                return -values.king+depth # Checkmate
             else:
                 return 0 # Stalemate
         return value
@@ -221,7 +183,7 @@ def minimax(board_rep, move_handler, alpha, beta, depth, values, tables, colour)
         if legal_moves_found == 0:
             king_bb = board_rep.bitboard_black["king"]
             if validator.is_square_attacked(king_bb, colour):
-                return values.king # Checkmate (good for white)
+                return values.king-depth # Checkmate (good for white)
             else:
                 return 0 # Stalemate
         return value
@@ -292,19 +254,49 @@ def find_best_move(board_rep, legal_moves, depth, colour):
     print(f"Munchkin found best move: {conversions.square_to_algebraic(best_move[0])}{conversions.square_to_algebraic(best_move[1])} with score: {best_score}")
     return best_move
 
+def is_endgame(board_white, board_black):
+    white_has_queen = board_white["queen"] != 0
+    black_has_queen = board_black["queen"] != 0
+
+    if not white_has_queen and not black_has_queen:
+        return True
+
+    white_satisfies_condition = True
+    if white_has_queen:
+        num_white_rooks = bin(board_white["rook"]).count('1')
+        num_white_knights = bin(board_white["knight"]).count('1')
+        num_white_bishops = bin(board_white["bishop"]).count('1')
+        
+        if num_white_rooks > 0 or (num_white_knights + num_white_bishops) > 1:
+            white_satisfies_condition = False
+
+    black_satisfies_condition = True
+    if black_has_queen:
+        num_black_rooks = bin(board_black["rook"]).count('1')
+        num_black_knights = bin(board_black["knight"]).count('1')
+        num_black_bishops = bin(board_black["bishop"]).count('1')
+        
+        if num_black_rooks > 0 or (num_black_knights + num_black_bishops) > 1:
+            black_satisfies_condition = False
+            
+    return white_satisfies_condition and black_satisfies_condition
 
 def evaluate_board(board_white,board_black,values,tables):
-    total_score =0
-
+    total_score = 0
+    endgame = is_endgame(board_white,board_black)
     for piece, bitboard in board_white.items():
+
         piece_value = getattr(values, piece)
         piece_table = getattr(tables, piece)
+
+        if piece == "king" and endgame:
+            piece_table = getattr(tables,f"king_end")    
         bb_copy = bitboard
         while bb_copy > 0:
             lsb = bb_copy & -bb_copy
             square_index = lsb.bit_length() - 1
             total_score += piece_value
-            total_score += piece_table[7 - (square_index // 8)][square_index % 8]
+            total_score += piece_table[7-(square_index // 8)][square_index % 8]
             bb_copy &= (bb_copy - 1)
 
     for piece, bitboard in board_black.items():

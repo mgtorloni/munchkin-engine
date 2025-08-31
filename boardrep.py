@@ -149,17 +149,6 @@ class BoardRep:
 
         return parts[1] # Return the color to move
 
-@dataclass
-class UnmakeInfo:
-    source_square: int
-    target_square: int
-    moved_piece: str
-
-    captured_piece: Optional[str] # Will be None if no capture
-
-    en_passant_square: int
-    castling_white: list[bool]
-    castling_black: list[bool]
 
 class MoveHandler:
     def __init__(self, boardrep: BoardRep):
@@ -188,65 +177,42 @@ class MoveHandler:
             raise ValueError("Color must be either 'white' or 'black'") 
 
     def fast_copy_board(self):
-        new_board = BoardRep()
-        new_board.bitboard_white = self.board_rep.bitboard_white.copy()
-        new_board.bitboard_black = self.board_rep.bitboard_black.copy()
+        return {
+            "bitboard_white":self.board_rep.bitboard_white.copy(),
+            "bitboard_black":self.board_rep.bitboard_black.copy(),
+            "castling_white":list(self.board_rep.castling_white),
+            "castling_black":list(self.board_rep.castling_black),
+            "en_passant_square":self.board_rep.en_passant_square
+        }
 
-        new_board.castling_white = list(self.board_rep.castling_white)
-        new_board.castling_black = list(self.board_rep.castling_black)
 
-        new_board.en_passant_square = self.board_rep.en_passant_square
-
-        return new_board
-
-    def make_move(self, move: tuple, colour: str) -> UnmakeInfo:
-        source_square, target_square = move
-        current_player_board = self.board_rep.bitboard_white if colour == "white" else self.board_rep.bitboard_black
-        opponent_board = self.board_rep.bitboard_black if colour == "white" else self.board_rep.bitboard_white
-        opponent_colour = "black" if colour == "white" else "white"
-
+    def make_move(self, move: tuple, colour: str):
+        source_square,target_square = move
+        current_player_board = self.board_rep.bitboard_white if colour=="white" else self.board_rep.bitboard_black
         moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square))
-    
-        
-        captured_piece = next((p for p, bb in opponent_board.items() if bb & target_square), None)
-        is_ep_capture = (moved_piece == 'pawn' and target_square == self.board_rep.en_passant_square)
-        if is_ep_capture:
-            captured_piece = 'pawn'
 
-        unmake_info = UnmakeInfo(
-            source_square=source_square,
-            target_square=target_square,
-            moved_piece=moved_piece,
-            captured_piece=captured_piece,
-            en_passant_square=self.board_rep.en_passant_square,
-            castling_white=list(self.board_rep.castling_white),
-            castling_black=list(self.board_rep.castling_black)
-        )
+        unmake_info = self.fast_copy_board()
 
+
+        ep_square_before_move = self.board_rep.en_passant_square
+
+        self._handle_captures(move,moved_piece,colour,ep_square_before_move)
+
+        self._update_game_state(move,moved_piece,colour)
+
+        is_castle = moved_piece == 'king' and abs(conversions.square_to_index(source_square) - conversions.square_to_index(target_square)) == 2
+        if is_castle:
+            self.make_castle(move, colour)
+
+        # Move piece
         self.unset_bit(source_square, moved_piece, colour)
         self.set_bit(target_square, moved_piece, colour)
 
-        if captured_piece and not is_ep_capture:
-            self.unset_bit(target_square, captured_piece, opponent_colour)
-        elif is_ep_capture:
-            captured_pawn_square = (target_square >> 8) if colour == "white" else (target_square << 8)
-            self.unset_bit(captured_pawn_square, 'pawn', opponent_colour)
-
-        self.board_rep.en_passant_square = 0
-        if moved_piece == "pawn" and abs(conversions.square_to_index(source_square) - conversions.square_to_index(target_square)) == 16:
-            self.board_rep.en_passant_square = (source_square << 8) if colour == "white" else (source_square >> 8)
-        
         is_promotion_square = any(target_square == 1<<i for i in range(55,64)) if colour == "white" else any(target_square==1<<i for i in range(0,8))
 
         if moved_piece == "pawn" and is_promotion_square:
             self.unset_bit(target_square,moved_piece,colour) #unset the pawn from the back rank
             self.set_bit(target_square,"queen",colour) #set a new queen
-
-        self._update_castling_rights(source_square, target_square, moved_piece, colour, captured_piece)
-        
-        is_castle = moved_piece == 'king' and abs(conversions.square_to_index(source_square) - conversions.square_to_index(target_square)) == 2
-        if is_castle:
-            self.make_castle(move, colour)
 
         return unmake_info
 
@@ -268,29 +234,6 @@ class MoveHandler:
 
                 if target_square == 1<<56: self.board_rep.castling_black[1] = False
                 if target_square == 1<<63: self.board_rep.castling_black[0] = False
-    def _update_castling_rights(self, source_square, target_square, moved_piece, colour, captured_piece):
-        A1 = 1
-        H1 = 1 << 7
-        A8 = 1 << 56
-        H8 = 1 << 63
-        if colour == 'white':
-            if moved_piece == 'king':
-                self.board_rep.castling_white = [False, False]
-            elif moved_piece == 'rook':
-                if source_square == H1: self.board_rep.castling_white[0] = False
-                elif source_square == A1: self.board_rep.castling_white[1] = False
-            if captured_piece == 'rook':
-                if target_square == H8: self.board_rep.castling_black[0] = False
-                elif target_square == A8: self.board_rep.castling_black[1] = False
-        else: # Black
-            if moved_piece == 'king':
-                self.board_rep.castling_black = [False, False]
-            elif moved_piece == 'rook':
-                if source_square == H8: self.board_rep.castling_black[0] = False
-                elif source_square == A8: self.board_rep.castling_black[1] = False
-            if captured_piece == 'rook':
-                if target_square == H1: self.board_rep.castling_white[0] = False
-                elif target_square == A1: self.board_rep.castling_white[1] = False
 
     def _update_game_state(self,move,moved_piece,colour):
         source_square,target_square = move
@@ -333,46 +276,12 @@ class MoveHandler:
         self.unset_bit(rook_start_square, 'rook', colour)
         self.set_bit(rook_end_square, 'rook', colour)
 
-    def unmake_move(self, unmake_info: UnmakeInfo):
-        self.board_rep.en_passant_square = unmake_info.en_passant_square
-        self.board_rep.castling_white = unmake_info.castling_white
-        self.board_rep.castling_black = unmake_info.castling_black
-
-        colour = "white" if sum(self.board_rep.bitboard_white.values()) & unmake_info.target_square else "black"
-        opponent_colour = "black" if colour == "white" else "white"
-
-        self.set_bit(unmake_info.source_square, unmake_info.moved_piece, colour)
-
-        is_promotion = (unmake_info.moved_piece=='pawn' and
-                        (unmake_info.target_square & constants.RANK_8 or
-                         unmake_info.target_square & constants.RANK_1))
-
-        if is_promotion:
-            self.unset_bit(unmake_info.target_square,"queen", colour)
-        else:
-            self.unset_bit(unmake_info.target_square, unmake_info.moved_piece, colour)
-        
-        if unmake_info.captured_piece:
-            is_ep_capture = (unmake_info.moved_piece == 'pawn' and unmake_info.target_square == unmake_info.en_passant_square)
-            if is_ep_capture:
-                captured_pawn_square = (unmake_info.target_square >> 8) if colour == "white" else (unmake_info.target_square << 8)
-                self.set_bit(captured_pawn_square, 'pawn', opponent_colour)
-            else:
-                self.set_bit(unmake_info.target_square, unmake_info.captured_piece, opponent_colour)
-
-        is_castle = unmake_info.moved_piece == 'king' and abs(conversions.square_to_index(unmake_info.source_square) - conversions.square_to_index(unmake_info.target_square)) == 2
-        if is_castle:
-            # king-side castle
-            if unmake_info.target_square > unmake_info.source_square:
-                rook_start_square = unmake_info.target_square << 1
-                rook_end_square = unmake_info.target_square >> 1
-            # Queen-side castle
-            else:
-                rook_start_square = unmake_info.target_square >> 2
-                rook_end_square = unmake_info.target_square << 1
-            
-            self.set_bit(rook_start_square, 'rook', colour)
-            self.unset_bit(rook_end_square, 'rook', colour)
+    def unmake_move(self, unmake_info):
+        self.board_rep.bitboard_white = unmake_info["bitboard_white"]
+        self.board_rep.bitboard_black = unmake_info["bitboard_black"]
+        self.board_rep.castling_white = unmake_info["castling_white"]
+        self.board_rep.castling_black = unmake_info["castling_black"]
+        self.board_rep.en_passant_square = unmake_info["en_passant_square"]
 
 class ValidMoves:
     def __init__(self,boardrep: BoardRep):
@@ -534,33 +443,34 @@ class ValidMoves:
 
     def rook_attacks(self,rook_bitboard:int,colour:str = "white")->int:
         """Finds which square a rook is attacking"""
-        if rook_bitboard ==0:
+        if rook_bitboard == 0:
             return 0
 
         own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
+        square_index = conversions.square_to_index(rook_bitboard)
 
-        index = conversions.square_to_index(rook_bitboard)
-
-        #refer to generating functions to see how these were obtained 
-        hmask = constants.ROOK_MASK_RANK[index] 
-        vmask = constants.ROOK_MASK_FILE[index]
-
-        rookAttacks = self.hyperbola_quint(rook_bitboard,hmask,colour) | self.hyperbola_quint(rook_bitboard,vmask,colour)
-        rookAttacks &= ~own_pieces 
-        return rookAttacks
-
+        blockers = self.occupied_squares & constants.ROOK_MAGIC_MASKS[square_index]
+        magic_index = ((blockers * constants.ROOK_MAGICS[square_index]) & 0xFFFFFFFFFFFFFFFF) >> constants.ROOK_SHIFTS[square_index] 
+        
+        base_offset = constants.ROOK_ATTACK_OFFSETS[square_index]
+        
+        attacks = constants.ROOK_ATTACKS[base_offset + magic_index]
+        
+        return attacks & ~own_pieces
     def bishop_attacks(self,bishop_bitboard:int,colour:str = "white")->int:
         """Finds which squares a bishop is attacking""" 
+
         own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
-        index = conversions.square_to_index(bishop_bitboard)
+        square_index = conversions.square_to_index(bishop_bitboard)
 
-        #refer to generating functions to see how these were obtained 
-        right_mask = constants.BISHOP_45DIAG[index]
-        left_mask = constants.BISHOP_135DIAG[index]
-
-        bishopAttacks = self.hyperbola_quint(bishop_bitboard,right_mask,colour) | self.hyperbola_quint(bishop_bitboard,left_mask,colour)
-        bishopAttacks &= ~own_pieces
-        return bishopAttacks
+        blockers = self.occupied_squares & constants.BISHOP_MAGIC_MASKS[square_index]
+        magic_index = ((blockers * constants.BISHOP_MAGICS[square_index]) & 0xFFFFFFFFFFFFFFFF) >> constants.BISHOP_SHIFTS[square_index] 
+        
+        base_offset = constants.BISHOP_ATTACK_OFFSETS[square_index]
+        
+        attacks = constants.BISHOP_ATTACKS[base_offset + magic_index]
+        
+        return attacks & ~own_pieces
 
     def queen_attacks(self,queen_bitboard:int,colour:str = "white")->int: #queens are just a bishop and a rook in one piece
         return self.rook_attacks(queen_bitboard,colour)|self.bishop_attacks(queen_bitboard,colour) 

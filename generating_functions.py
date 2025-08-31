@@ -1,7 +1,31 @@
 """
 THIS FILE CONTAINS THE FUNCTIONS THAT GENERATE THE VALUES IN constants.py
 """
-def generate_rook_mask(square: int) -> int:
+from typing import List
+
+def bitboard_to_string(bitboard: int, piece_bb:int = 0) -> str:
+    board_str = ""
+    for rank in range(7, -1, -1):
+        board_str += f"{rank + 1} | "
+        for file in range(8):
+            square_index = rank * 8 + file
+            square_bit = 1<<square_index
+            if piece_bb & square_bit:
+                board_str += "P "
+            elif bitboard & square_bit:
+                board_str += "X "
+            else:
+                board_str += ". "
+        board_str += "\n"
+    board_str += "  +-----------------\n"
+    board_str += "    A B C D E F G H\n"
+    return board_str
+
+def generate_rook_mask_hyperbola(square: int) -> int:
+    """
+    In reality this function was broken up in two functions, creating horizontal masks and vertical masks for the rooks
+    separately, this is important when passing it through the hyperbola quintessential formula
+    """
     rank = square // 8
     file = square % 8
     mask = 0
@@ -14,15 +38,48 @@ def generate_rook_mask(square: int) -> int:
     for r in range(8):
         if r != rank:
             mask|= 1 << (r * 8 + file)
-    """
-    
-    In reality this function was broken up in two functions, creating horizontal masks and vertical masks for the rooks
-    separately, this is important when passing it through the hyperbola quintessential formula
-
-    """
     return mask
-ROOK_MASKS = [generate_rook_mask(s) for s in range(64)]
-print(ROOK_MASKS)
+
+#ROOK_MASKS = [generate_rook_mask_hyperbola(s) for s in range(64)]
+#print(ROOK_MASKS)
+
+"""
+def generate_rook_occupancy_magic(square:int) -> int:
+    mask = 0
+    rank = square//8
+    file = square%8
+
+    for f in range(1,7):
+        if f!=file:
+            mask|= 1<<(rank*8+f)
+
+    for r in range(1,7):
+        if r!=rank:
+            mask |= 1<<(r*8+file)
+
+    mask &= ~(1<<square)
+    return mask
+
+
+ROOK_MAGIC_MASKS = [generate_rook_occupancy_magic(s) for s in range(64)]
+#print(ROOK_MAGIC_MASKS)
+
+def occupancy_variations(mask:List[int]) -> int:
+    variations = []
+    sub_mask = 0
+    while True:
+        variations.append(sub_mask)
+        sub_mask = (sub_mask - mask) & mask
+        if sub_mask == 0:
+            break
+    return variations
+    
+OCCUPANCIES_ROOK = [occupancy_variations(mask) for mask in ROOK_MAGIC_MASKS]
+print(len(OCCUPANCIES_ROOK))
+for occupancy_rook in OCCUPANCIES_ROOK:
+    for variation in occupancy_rook:
+        print(bitboard_to_string(variation))
+"""
 
 def generate_bishop_mask(square: int) -> int:
     rank = square // 8
@@ -65,8 +122,8 @@ def generate_bishop_mask(square: int) -> int:
     return mask
 
 # Build a list of bishop masks for all 64 squares
-BISHOP_MASKS = [generate_bishop_mask(s) for s in range(64)]
-print(BISHOP_MASKS)
+#BISHOP_MASKS = [generate_bishop_mask_hyperbola(s) for s in range(64)]
+#print(BISHOP_MASKS)
 
 def generate_initial_positions():
     import conversions

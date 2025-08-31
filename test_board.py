@@ -66,26 +66,26 @@ def test_pawn_forward_moves(square, blocked, colour, expected_moves):
     assert actual_moves == bitboard_expected_moves
 
 @pytest.mark.parametrize("square, not_squares, colour, expected_moves", [
-    ("e4", (), "white", ("d5", "f5")),       # Both capture squares are occupied
-    ("e4", ("d5",), "white", ("f5",)),       # d5 is empty, can only capture on f5
-    ("e4", ("f5",), "white", ("d5",)),       # f5 is empty, can only capture on d5
-    ("e4", ("d5", "f5"), "white", ()),       # Both capture squares are empty
+    ("e4", (), "white", ("d5", "f5")),
+    ("e4", ("d5",), "white", ("f5",)),
+    ("e4", ("f5",), "white", ("d5",)),
+    ("e4", ("d5", "f5"), "white", ()),
 
-    ("d5", (), "black", ("c4", "e4")),       # Both capture squares are occupied
-    ("d5", ("c4",), "black", ("e4",)),       # c4 is empty, can only capture on e4
-    ("d5", ("e4",), "black", ("c4",)),       # e4 is empty, can only capture on c4
-    ("d5", ("c4", "e4"), "black", ()),       # Both capture squares are empty
+    ("d5", (), "black", ("c4", "e4")),
+    ("d5", ("c4",), "black", ("e4",)),
+    ("d5", ("e4",), "black", ("c4",)),
+    ("d5", ("c4", "e4"), "black", ()),
 
-    ("a2", (), "white", ("b3",)),            # Capture square b3 is occupied
-    ("a2", ("b3",), "white", ()),            # Capture square b3 is empty
+    ("a2", (), "white", ("b3",)),
+    ("a2", ("b3",), "white", ()),
 
-    ("h7", (), "black", ("g6",)),            # Capture square g6 is occupied
-    ("h7", ("g6",), "black", ()),            # Capture square g6 is empty
+    ("h7", (), "black", ("g6",)),
+    ("h7", ("g6",), "black", ()),
 
-    ("c7", (), "white", ("b8", "d8")),       # Both promotion capture squares are occupied
-    ("c7", ("b8",), "white", ("d8",)),       # b8 is empty, can only capture on d8
-    ("f2", (), "black", ("e1", "g1")),       # Both promotion capture squares are occupied
-    ("f2", ("e1",), "black", ("g1",)),       # e1 is empty, can only capture on g1
+    ("c7", (), "white", ("b8", "d8")),
+    ("c7", ("b8",), "white", ("d8",)),
+    ("f2", (), "black", ("e1", "g1")),
+    ("f2", ("e1",), "black", ("g1",)),
 ])
 
 def test_pawn_captures(square, not_squares, colour, expected_moves):
