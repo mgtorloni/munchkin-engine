@@ -2,11 +2,13 @@ import constants
 import conversions
 import copy
 from dataclasses import dataclass
-from typing import Optional
+from typing import Tuple
 
 class BoardRep:
     """Turns board into a bitboards"""
+
     def __init__(self):
+        # Just initialise the board
         self.bitboard_black={
             "pawn": 0,
             "knight": 0,
@@ -24,7 +26,7 @@ class BoardRep:
             "king": 0        
         }
 
-        #[King moved, King-side castling, queen-side castling] 
+        #[King-side castling, Queen-side castling] 
         self.castling_white = [True,True]
         self.castling_black = [True,True]
 
@@ -45,6 +47,7 @@ class BoardRep:
         return (self.bitboard_white,self.bitboard_black)
 
     def to_fen(self, colour_to_move: str) -> str:
+        """ Turns a position into FEN """
         piece_to_char = {
             "pawn": 'p', "knight": 'n', "bishop": 'b',
             "rook": 'r', "queen": 'q', "king": 'k'
@@ -107,7 +110,7 @@ class BoardRep:
         return fen
 
     def from_fen(self, fen: str):
-        """Sets the board state from a FEN string."""
+        """Sets the board state from a FEN string"""
         self.bitboard_white = {p: 0 for p in self.bitboard_white}
         self.bitboard_black = {p: 0 for p in self.bitboard_black}
 
@@ -314,7 +317,7 @@ class ValidMoves:
         # Add a 64-bit mask to discard any "off-board" bits before returning
         return attacks & 0xFFFFFFFFFFFFFFFF & ~own_pieces
 
-    def can_castle(self,colour:str="white")->(bool,bool):
+    def can_castle(self,colour:str="white")->Tuple[bool,bool]:
         """Returns a tuple showing if that colour can castle king-side or queen-side""" 
         rights = self.board_rep.castling_white if colour == "white" else self.board_rep.castling_black
 
