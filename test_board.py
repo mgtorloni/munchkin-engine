@@ -3,7 +3,6 @@ from boardrep import BoardRep, ValidMoves, MoveHandler
 import munchkin
 import conversions
 
-
 @pytest.mark.parametrize("square, blocked, colour, expected_moves", [
     ("e2", False, "white", ("e3", "e4")), 
     ("e4", False, "white", ("e5",)),

@@ -1,14 +1,13 @@
 import constants
 import conversions
 import copy
-from dataclasses import dataclass
-from typing import Tuple
+from typing import TypedDict
 
 class BoardRep:
     """Turns board into a bitboards"""
 
     def __init__(self):
-        # Just initialise the board
+        """Just initialise the board"""
         self.bitboard_black={
             "pawn": 0,
             "knight": 0,
@@ -35,19 +34,22 @@ class BoardRep:
 
     def initial_position(self)->tuple[dict,dict]:
         """Set initial positions of pieces on the chess board"""
-        
+
+        #Calculated using the generating functions
         self.bitboard_white = constants.INITIAL_WHITE
         self.bitboard_black = constants.INITIAL_BLACK
 
+        # We haven't lost our ability to castle in the future yet
+        # (it is the start of the game!)
         self.castling_white = [True,True]
         self.castling_black = [True,True]
 
-        self.en_passant_square = 0
+        self.en_passant_square = 0 # There is no en passants
 
         return (self.bitboard_white,self.bitboard_black)
 
     def to_fen(self, colour_to_move: str) -> str:
-        """ Turns a position into FEN """
+        """Turns a position into FEN"""
         piece_to_char = {
             "pawn": 'p', "knight": 'n', "bishop": 'b',
             "rook": 'r', "queen": 'q', "king": 'k'
@@ -152,12 +154,19 @@ class BoardRep:
 
         return parts[1] # Return the color to move
 
+class UnmakeInfo(TypedDict):
+    bitboard_white: dict[str, int]
+    bitboard_black: dict[str, int]
+    castling_white: list[bool]
+    castling_black: list[bool]
+    en_passant_square: int
 
 class MoveHandler:
     def __init__(self, boardrep: BoardRep):
         self.board_rep = boardrep
     
-    def unset_bit(self,square:int,piece:str,colour = "white"):
+    def unset_bit(self,square:int,piece:str,colour:str = "white"):
+        """Unset piece from a bit"""
         if colour.lower() == "white": 
             self.board_rep.bitboard_white[piece] &= ~square
             return self.board_rep.bitboard_white
@@ -165,12 +174,15 @@ class MoveHandler:
         elif colour.lower() == "black":
             self.board_rep.bitboard_black[piece] &= ~square
             return self.board_rep.bitboard_black
+        else:
+            raise ValueError("Color must be either 'white' or 'black'")
 
-    def set_bit(self,square:int, piece: str,colour="white") -> int:
+    def set_bit(self,square:int, piece: str,colour:str = "white") -> int:
         """Set piece on a bit"""
 
         if colour.lower() == "white": 
-            self.board_rep.bitboard_white[piece] |= square
+            self.board_rep.bitboard_white[piece] |= square # We want to add a bit to that position
+            #in that pieces bitboard
             return self.board_rep.bitboard_white
 
         elif colour.lower() == "black":
@@ -179,7 +191,8 @@ class MoveHandler:
         else:
             raise ValueError("Color must be either 'white' or 'black'") 
 
-    def fast_copy_board(self):
+    def fast_copy_board(self) -> UnmakeInfo:
+        """Creates a fast copy of the board, since deepcopy is very slow"""
         return {
             "bitboard_white":self.board_rep.bitboard_white.copy(),
             "bitboard_black":self.board_rep.bitboard_black.copy(),
@@ -189,13 +202,18 @@ class MoveHandler:
         }
 
 
-    def make_move(self, move: tuple, colour: str):
+    def make_move(self, move: tuple, colour: str) -> UnmakeInfo:
+        """ 
+        Makes a move, changing the board state and returns a
+        unamke info backup of the board state before it made the change
+
+        We don't care if the moves are legal in this function, we just make them as allowed by the rules
+        """
         source_square,target_square = move
         current_player_board = self.board_rep.bitboard_white if colour=="white" else self.board_rep.bitboard_black
         moved_piece = next((p for p, bb in current_player_board.items() if bb & source_square))
 
-        unmake_info = self.fast_copy_board()
-
+        unmake_info = self.fast_copy_board() # Before we modify anything make a copy so that we can revert the changes later if needed
 
         ep_square_before_move = self.board_rep.en_passant_square
 
@@ -203,6 +221,8 @@ class MoveHandler:
 
         self._update_game_state(move,moved_piece,colour)
 
+        # If we moved the king to the square that is 2 squares away to the left or to the right,
+        # we are trying to castle, and so we should 
         is_castle = moved_piece == 'king' and abs(conversions.square_to_index(source_square) - conversions.square_to_index(target_square)) == 2
         if is_castle:
             self.make_castle(move, colour)
@@ -211,6 +231,7 @@ class MoveHandler:
         self.unset_bit(source_square, moved_piece, colour)
         self.set_bit(target_square, moved_piece, colour)
 
+        # If a pawn is on the last rank it is a promotion square we just moved into
         is_promotion_square = any(target_square == 1<<i for i in range(55,64)) if colour == "white" else any(target_square==1<<i for i in range(0,8))
 
         if moved_piece == "pawn" and is_promotion_square:
@@ -219,7 +240,8 @@ class MoveHandler:
 
         return unmake_info
 
-    def _handle_captures(self,move, moved_piece,colour, ep_square_before_move):
+    def _handle_captures(self, move:tuple[int,int], moved_piece:str, colour:str, ep_square_before_move:int) -> None:
+        """Changes the states of a board if a piece has been captured"""
         _,target_square = move
         opponent_colour = "black" if colour=="white" else "white"
         opponent_board = self.board_rep.bitboard_black if colour == "white" else self.board_rep.bitboard_white
@@ -238,7 +260,8 @@ class MoveHandler:
                 if target_square == 1<<56: self.board_rep.castling_black[1] = False
                 if target_square == 1<<63: self.board_rep.castling_black[0] = False
 
-    def _update_game_state(self,move,moved_piece,colour):
+    def _update_game_state(self, move:tuple[int,int], moved_piece:str, colour:str):
+        """Handles changes in state that don't involve captures"""
         source_square,target_square = move
 
         if moved_piece == "pawn" and abs(conversions.square_to_index(source_square) - conversions.square_to_index(target_square)) == 16:
@@ -246,31 +269,39 @@ class MoveHandler:
         else:
             self.board_rep.en_passant_square = 0
 
+        # If the king moves it can't castle in any direction anymore
         if moved_piece == 'king':
             if colour == 'white':
                 self.board_rep.castling_white = [False, False]
             else:
                 self.board_rep.castling_black = [False, False]
 
+        # If a rook moves the king can't castle in that direction anymore
         if moved_piece == 'rook':
             if colour == 'white':
                 if source_square == 1: #a1 rook
                     self.board_rep.castling_white[1] = False
-                elif source_square == 1<<7:
+                elif source_square == 1<<7: #h8 rook
                     self.board_rep.castling_white[0] = False
             if colour == 'black':
-                if source_square == 1<<56:
+                if source_square == 1<<56: #a8
                     self.board_rep.castling_black[1] = False
-                elif source_square == 1<<63:
+                elif source_square == 1<<63: #g8 rook
                     self.board_rep.castling_black[0] = False
 
-    def make_castle(self, move, colour):
+    def make_castle(self, move:tuple[int,int], colour:str):
+        """
+        Castles the king: This involves going with the king to squares to the right
+        (or to the left) and putting the rook on the square directly to the left 
+        (or to the right) of the king
+        """
         source_square,target_square = move
 
         # king-side castle
         if target_square > source_square:
             rook_start_square = target_square << 1
             rook_end_square = target_square >> 1
+
         # Queen-side castle
         else:
             rook_start_square = target_square >> 2
@@ -279,7 +310,11 @@ class MoveHandler:
         self.unset_bit(rook_start_square, 'rook', colour)
         self.set_bit(rook_end_square, 'rook', colour)
 
-    def unmake_move(self, unmake_info):
+    def unmake_move(self, unmake_info:UnmakeInfo) -> None:
+        """ Changes the board state to a whatever the user wants"""
+        # This function is used primarily as a means to change the board state back
+        # to what it was before a move was made, but it can realistically be use to change
+        # to any board state a user wants
         self.board_rep.bitboard_white = unmake_info["bitboard_white"]
         self.board_rep.bitboard_black = unmake_info["bitboard_black"]
         self.board_rep.castling_white = unmake_info["castling_white"]
@@ -287,6 +322,7 @@ class MoveHandler:
         self.board_rep.en_passant_square = unmake_info["en_passant_square"]
 
 class ValidMoves:
+    """Adds the rules to the board representation"""
     def __init__(self,boardrep: BoardRep):
         self.board_rep = boardrep
         self.move_handler = MoveHandler(self.board_rep)
@@ -296,14 +332,15 @@ class ValidMoves:
         self.FILE_AB = self.FILE_A | (self.FILE_A << 1);
         self.FILE_GH = self.FILE_H | (self.FILE_H >> 1);
 
+    #Every time these are "called" (no need for ()) they are calculated/updated
     @property
-    def white_pieces(self):
+    def white_pieces(self) -> int:
         return sum(self.board_rep.bitboard_white.values())
     @property
-    def black_pieces(self):
+    def black_pieces(self) -> int:
         return sum(self.board_rep.bitboard_black.values())
     @property
-    def occupied_squares(self):
+    def occupied_squares(self) -> int:
         return self.white_pieces|self.black_pieces
 
     def king_attacks(self,king_bitboard:int,colour:str="white")->int:
@@ -315,19 +352,22 @@ class ValidMoves:
            (king_bitboard >> 8) | (king_bitboard << 8)
         
         # Add a 64-bit mask to discard any "off-board" bits before returning
+        # Since the king works solely off bit operations we could shift a bit so much it goes off the board
         return attacks & 0xFFFFFFFFFFFFFFFF & ~own_pieces
 
-    def can_castle(self,colour:str="white")->Tuple[bool,bool]:
+    def can_castle(self,colour:str="white") -> tuple[bool,bool]:
         """Returns a tuple showing if that colour can castle king-side or queen-side""" 
         rights = self.board_rep.castling_white if colour == "white" else self.board_rep.castling_black
 
         #King-side Check
         can_castle_ks = rights[0]  # Start with the stored right
         if can_castle_ks:  # Only check further if the right hasn't been lost
+            # f1 | g1 if white else f8 | g8
             path_squares = (1 << 5) | (1 << 6) if colour == "white" else (1 << 61) | (1 << 62)
-            if self.occupied_squares & path_squares:
+            if self.occupied_squares & path_squares: # If there are pieces in the path squares we know we can't castle
                 can_castle_ks = False
             else:
+                # We need to check that the king isn't in check and that the squares between it and c8 aren't aren't being attacked
                 attack_check_squares = [1 << 4, 1 << 5, 1 << 6] if colour == "white" else [1 << 60, 1 << 61, 1 << 62]
                 if any(self.is_square_attacked(sq, colour) for sq in attack_check_squares):
                     can_castle_ks = False
@@ -335,11 +375,14 @@ class ValidMoves:
         #Queen-side Check
         can_castle_qs = rights[1]  # Start with the stored right
         if can_castle_qs:  # Only check further if the right hasn't been lost
+
+            # a1 | b1 | c1 if white else b8 | c8 | d8                                  
             path_squares = (1 << 1) | (1 << 2) | (1 << 3) if colour == "white" else (1 << 57) | (1 << 58) | (1 << 59)
-            if self.occupied_squares & path_squares:
+            if self.occupied_squares & path_squares: # If there are pieces in the path squares we know we can't castle
                 can_castle_qs = False
             else:
-                attack_check_squares = [1 << 4, 1 << 3, 1 << 2] if colour == "white" else [1 << 60, 1 << 59, 1 << 58]
+                # We need to check that the king isn't in check and that the squares between it and c8 aren't aren't being attacked
+                attack_check_squares = [1 << 4, 1 << 3, 1 << 2] if colour == "white" else [1 << 60, 1 << 59, 1 << 58] 
                 if any(self.is_square_attacked(sq, colour) for sq in attack_check_squares):
                     can_castle_qs = False
 
@@ -379,7 +422,7 @@ class ValidMoves:
 
         return False #if no pieces attacks that square, then return false
 
-    def knight_attacks(self,piece_bitboard:int,colour:str="white")-> int:
+    def knight_attacks(self,piece_bitboard:int,colour:str="white") -> int:
         """Finds which squares a knight is attacking"""
         
         own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
@@ -436,7 +479,7 @@ class ValidMoves:
 
         return attacks | moves | en_passant_move & 0xFFFFFFFFFFFFFFFF
 
-    def hyperbola_quint(self,slider_bitboard:int,mask:int,colour:str = "white")->int: #slider attacks formula
+    def hyperbola_quint(self,slider_bitboard:int,mask:int,colour:str = "white") -> int: #slider attacks formula
         """Uses the hyperbola quintessential formula to calculate how the slider attacks stop at a piece on their way"""
         #formula : ((o&m)-2s)^reverse(reverse(o&m)-2reverse(s))&m
         sliderAttacks = (((self.occupied_squares & mask) - (slider_bitboard<< 1)) ^
@@ -460,7 +503,8 @@ class ValidMoves:
         attacks = constants.ROOK_ATTACKS[base_offset + magic_index]
         
         return attacks & ~own_pieces
-    def bishop_attacks(self,bishop_bitboard:int,colour:str = "white")->int:
+
+    def bishop_attacks(self,bishop_bitboard:int,colour:str = "white") -> int:
         """Finds which squares a bishop is attacking""" 
 
         own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
@@ -475,7 +519,7 @@ class ValidMoves:
         
         return attacks & ~own_pieces
 
-    def queen_attacks(self,queen_bitboard:int,colour:str = "white")->int: #queens are just a bishop and a rook in one piece
+    def queen_attacks(self,queen_bitboard:int,colour:str = "white") -> int: #queens are just a bishop and a rook in one piece
         return self.rook_attacks(queen_bitboard,colour)|self.bishop_attacks(queen_bitboard,colour) 
 
     def generate_pseudo_legal_moves(self, colour: str) -> list:
