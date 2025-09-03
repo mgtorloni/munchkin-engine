@@ -418,7 +418,7 @@ class ValidMoves:
         if self.rook_attacks(square_bb, defender_colour) & attacker_board["rook"]:
             return True #if there is a rook a 'rook-away' from this square it means that it is being attacked by that rook 
         if self.king_attacks(square_bb,defender_colour) & attacker_board["king"]:
-            return True
+            return True #if there is a king a 'king-away' from this square it means that it is being attacked by that king 
 
         return False #if no pieces attacks that square, then return false
 
@@ -448,18 +448,18 @@ class ValidMoves:
         en_passant_move = 0
 
         if colour == "white":
+            # If we are white we go up the board so <<8 is the correct direction to push
             enemy_pieces = self.black_pieces
-            single_push = (pawn_bitboard << 8) & ~self.occupied_squares
-            if single_push and (pawn_bitboard & constants.RANK_2):
+            single_push = (pawn_bitboard << 8) & ~self.occupied_squares #We can't move if there is a piece right in from
+            if single_push and (pawn_bitboard & constants.RANK_2): # If we are in the starting rank we may double push
                 double_push = (pawn_bitboard << 16) & ~self.occupied_squares
                 moves = single_push | double_push
             else:
                 moves = single_push
-            attacks = ((pawn_bitboard << 9) & ~self.FILE_A) | ((pawn_bitboard << 7) & ~self.FILE_H)
-            attacks &= enemy_pieces
-            if self.board_rep.en_passant_square:
-                ep_attacks = ((pawn_bitboard << 9) & ~self.FILE_A) | ((pawn_bitboard << 7) & ~self.FILE_H)
-                if ep_attacks & self.board_rep.en_passant_square:
+            pseudo_attacks = ((pawn_bitboard << 9) & ~self.FILE_A) | ((pawn_bitboard << 7) & ~self.FILE_H) # If we are white the attacks are NW and NE the board
+            attacks = pseudo_attacks & enemy_pieces # We can only attack those squares if there are enemy pieces there 
+            if self.board_rep.en_passant_square: # If the enpassant square is not 0
+                if pseudo_attacks & self.board_rep.en_passant_square:
                     en_passant_move = self.board_rep.en_passant_square
 
         elif colour == "black":
@@ -470,14 +470,13 @@ class ValidMoves:
                 moves = single_push | double_push
             else:
                 moves = single_push
-            attacks = ((pawn_bitboard >> 9) & ~self.FILE_H) | ((pawn_bitboard >> 7) & ~self.FILE_A)
-            attacks &= enemy_pieces
+            pseudo_attacks = ((pawn_bitboard >> 9) & ~self.FILE_H) | ((pawn_bitboard >> 7) & ~self.FILE_A)
+            attacks = pseudo_attacks & enemy_pieces
             if self.board_rep.en_passant_square:
-                ep_attacks = ((pawn_bitboard >> 9) & ~self.FILE_H) | ((pawn_bitboard >> 7) & ~self.FILE_A)
-                if ep_attacks & self.board_rep.en_passant_square:
+                if pseudo_attacks & self.board_rep.en_passant_square:
                     en_passant_move = self.board_rep.en_passant_square
 
-        return attacks | moves | en_passant_move & 0xFFFFFFFFFFFFFFFF
+        return attacks | moves | en_passant_move & 0xFFFFFFFFFFFFFFFF #Since these are shifting operations we are applying, we may leave the board, therefore it is safe to apply that board mask
 
     def hyperbola_quint(self,slider_bitboard:int,mask:int,colour:str = "white") -> int: #slider attacks formula
         """Uses the hyperbola quintessential formula to calculate how the slider attacks stop at a piece on their way"""
@@ -488,9 +487,7 @@ class ValidMoves:
         return sliderAttacks
 
     def rook_attacks(self,rook_bitboard:int,colour:str = "white")->int:
-        """Finds which square a rook is attacking"""
-        if rook_bitboard == 0:
-            return 0
+        """Finds which square a rook is attacking using magic bitboards"""
 
         own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
         square_index = conversions.square_to_index(rook_bitboard)
@@ -505,12 +502,12 @@ class ValidMoves:
         return attacks & ~own_pieces
 
     def bishop_attacks(self,bishop_bitboard:int,colour:str = "white") -> int:
-        """Finds which squares a bishop is attacking""" 
+        """Finds which squares a bishop is attacking using magic bitboards""" 
 
         own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
-        square_index = conversions.square_to_index(bishop_bitboard)
+        square_index = conversions.square_to_index(bishop_bitboard) #Convert the bitboard to index
 
-        blockers = self.occupied_squares & constants.BISHOP_MAGIC_MASKS[square_index]
+        blockers = self.occupied_squares & constants.BISHOP_MAGIC_MASKS[square_index] # What are the pieces in the way of the bishop
         magic_index = ((blockers * constants.BISHOP_MAGICS[square_index]) & 0xFFFFFFFFFFFFFFFF) >> constants.BISHOP_SHIFTS[square_index] 
         
         base_offset = constants.BISHOP_ATTACK_OFFSETS[square_index]
@@ -519,7 +516,8 @@ class ValidMoves:
         
         return attacks & ~own_pieces
 
-    def queen_attacks(self,queen_bitboard:int,colour:str = "white") -> int: #queens are just a bishop and a rook in one piece
+    def queen_attacks(self,queen_bitboard:int,colour:str = "white") -> int:
+        """Finds the squares the queen is attacking (they are just rooks and bishops in one piece)"""
         return self.rook_attacks(queen_bitboard,colour)|self.bishop_attacks(queen_bitboard,colour) 
 
     def generate_pseudo_legal_moves(self, colour: str) -> list:
@@ -531,7 +529,7 @@ class ValidMoves:
         }
         current_player_bb = self.board_rep.bitboard_white if colour == "white" else self.board_rep.bitboard_black
 
-        # --- Generate all piece moves ---
+        # Generate all piece moves
         for piece, bitboard in current_player_bb.items():
             source_squares = bitboard
             while source_squares:
