@@ -140,11 +140,11 @@ def minimax(board_rep:BoardRep, move_handler:MoveHandler, alpha:float, beta:floa
             unmake_info = move_handler.make_move(move, colour)
 
             king_bb = board_rep.bitboard_white["king"]
-            if validator.is_square_attacked(king_bb, colour): # Leaves the king in check 
+            if validator.is_square_attacked(king_bb, colour): # If we are leaving the king in check after doing the move
                 move_handler.unmake_move(unmake_info) # Undo move 
                 continue # Skip this move
             
-            legal_moves_found += 1 # If the last condition is not true we have a legal move
+            legal_moves_found += 1 # If the last condition is not true, we have a legal move
             value = max(value, minimax(board_rep, move_handler, alpha, beta, depth - 1, values, tables, opponent_colour)) # Call minimax recursively
             move_handler.unmake_move(unmake_info) # Unmake the move to not change the board state
             if value >= beta: # Alpha beta pruning

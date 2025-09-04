@@ -521,6 +521,7 @@ class ValidMoves:
         return self.rook_attacks(queen_bitboard,colour)|self.bishop_attacks(queen_bitboard,colour) 
 
     def generate_pseudo_legal_moves(self, colour: str) -> list:
+        """Generate all legal moves, without considering if the king is going to be in check"""
         pseudo_legal_moves = []
         attack_functions = {
             "pawn": self.pawn_attacks, "rook": self.rook_attacks,
@@ -533,13 +534,13 @@ class ValidMoves:
         for piece, bitboard in current_player_bb.items():
             source_squares = bitboard
             while source_squares:
-                source = source_squares & -source_squares
+                source = source_squares & -source_squares # Take the first bit (from right to left) of that bitboard
                 target_squares = attack_functions[piece](source, colour)
                 while target_squares:
-                    target = target_squares & -target_squares
-                    pseudo_legal_moves.append((source, target))
-                    target_squares &= target_squares - 1
-                source_squares &= source_squares - 1
+                    target = target_squares & -target_squares # Take the first bit (from right to left) of the target squares
+                    pseudo_legal_moves.append((source, target)) # That is a move we can make 
+                    target_squares &= target_squares - 1 # Clears the target square we just calculated
+                source_squares &= source_squares - 1 # Clears the source square for the (single) piece we just calculated
 
         # Note can_castle already checks if the king passes through check, so this is safe
         castling_rights = self.can_castle(colour)
@@ -551,15 +552,18 @@ class ValidMoves:
         return pseudo_legal_moves
 
     def generate_all_legal_moves(self, colour: str) -> list:
-        pseudo_moves = self.generate_pseudo_legal_moves(colour)
+        """
+        Generate all legal moves, checking if the king is going to be in check,
+        we only use this for the user
+        """
+        pseudo_moves = self.generate_pseudo_legal_moves(colour) #Generate all moves
         legal_moves = []
 
         for move in pseudo_moves:
             unmake_info = self.move_handler.make_move(move, colour)
             king_bb = self.board_rep.bitboard_white["king"] if colour == "white" else self.board_rep.bitboard_black["king"]
-            if not self.is_square_attacked(king_bb, colour):
-                legal_moves.append(move)
+            if not self.is_square_attacked(king_bb, colour): #Checks if the move we made  will leave the king in check
+                legal_moves.append(move) # If not, that is a legal move
             self.move_handler.unmake_move(unmake_info)
-
         return legal_moves
 
