@@ -6,7 +6,6 @@ import constants
 import munchkin
 import os 
 #------------------INIT-------------------
-WIDTH, HEIGHT = constants.WIDTH, constants.HEIGHT # Size of window
 SQUARE_SIZE:int = constants.SQUARE_SIZE  # The size of each square in the chess board
 x = 600  # How far from the left of the screen
 y = 30 # How far from the top of the screen
@@ -102,8 +101,8 @@ def main():
 
     #------------------Config-----------------
     pygame.display.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    WHITE_PCS, BLACK_PCS = pieces.piece_images(pygame, constants.SQUARE_SIZE)
+    screen = pygame.display.set_mode((constants.WIDTH, constants.HEIGHT))
+    WHITE_PCS, BLACK_PCS = pieces.piece_images(pygame, SQUARE_SIZE)
     clock = pygame.time.Clock()
     #-----------------------------------------
     #generate all legal moves for white's first turn

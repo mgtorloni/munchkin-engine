@@ -43,43 +43,6 @@ def generate_rook_mask_hyperbola(square: int) -> int:
 #ROOK_MASKS = [generate_rook_mask_hyperbola(s) for s in range(64)]
 #print(ROOK_MASKS)
 
-"""
-def generate_rook_occupancy_magic(square:int) -> int:
-    mask = 0
-    rank = square//8
-    file = square%8
-
-    for f in range(1,7):
-        if f!=file:
-            mask|= 1<<(rank*8+f)
-
-    for r in range(1,7):
-        if r!=rank:
-            mask |= 1<<(r*8+file)
-
-    mask &= ~(1<<square)
-    return mask
-
-
-ROOK_MAGIC_MASKS = [generate_rook_occupancy_magic(s) for s in range(64)]
-#print(ROOK_MAGIC_MASKS)
-
-def occupancy_variations(mask:List[int]) -> int:
-    variations = []
-    sub_mask = 0
-    while True:
-        variations.append(sub_mask)
-        sub_mask = (sub_mask - mask) & mask
-        if sub_mask == 0:
-            break
-    return variations
-    
-OCCUPANCIES_ROOK = [occupancy_variations(mask) for mask in ROOK_MAGIC_MASKS]
-print(len(OCCUPANCIES_ROOK))
-for occupancy_rook in OCCUPANCIES_ROOK:
-    for variation in occupancy_rook:
-        print(bitboard_to_string(variation))
-"""
 
 def generate_bishop_mask(square: int) -> int:
     rank = square // 8
@@ -125,24 +88,24 @@ def generate_bishop_mask(square: int) -> int:
 #BISHOP_MASKS = [generate_bishop_mask_hyperbola(s) for s in range(64)]
 #print(BISHOP_MASKS)
 
-def generate_initial_positions():
+def generate_initial_positions(bitboard_white,bitboard_black):
     import conversions
     for file in 'abcdefgh':
-        self.bitboard_white["pawns"] |= 1 << conversions.square_to_index(file + "2")
+        bitboard_white["pawns"] |= 1 << conversions.square_to_index(file + "2")
         
-        self.bitboard_black["pawns"] |= 1 << conversions.square_to_index(file + "7")
+        bitboard_black["pawns"] |= 1 << conversions.square_to_index(file + "7")
        
     for file in 'ah':
-        self.bitboard_white["rooks"] |= 1 << conversions.square_to_index(file + "1")
-        self.bitboard_black["rooks"] |= 1 << conversions.square_to_index(file + "8")
+        bitboard_white["rooks"] |= 1 << conversions.square_to_index(file + "1")
+        bitboard_black["rooks"] |= 1 << conversions.square_to_index(file + "8")
     for file in 'bg':
-        self.bitboard_white["knights"] |= 1 << conversions.square_to_index(file + "1")
-        self.bitboard_black["knights"] |= 1 << conversions.square_to_index(file + "8")
+        bitboard_white["knights"] |= 1 << conversions.square_to_index(file + "1")
+        bitboard_black["knights"] |= 1 << conversions.square_to_index(file + "8")
     for file in 'cf':
-        self.bitboard_white["bishop"] |= 1 << conversions.square_to_index(file + "1")
-        self.bitboard_black["bishop"] |= 1 << conversions.square_to_index(file + "8")
-    self.bitboard_white["king"] |= 1 << conversions.square_to_index("e1")
-    self.bitboard_white["queen"] |= 1 << conversions.square_to_index("d1")
-    self.bitboard_black["king"] |= 1 << conversions.square_to_index("e8")
-    self.bitboard_black["queen"] |= 1 << conversions.square_to_index("d8")
-    return (self.bitboard_white,self.bitboard_black)
+        bitboard_white["bishop"] |= 1 << conversions.square_to_index(file + "1")
+        bitboard_black["bishop"] |= 1 << conversions.square_to_index(file + "8")
+    bitboard_white["king"] |= 1 << conversions.square_to_index("e1")
+    bitboard_white["queen"] |= 1 << conversions.square_to_index("d1")
+    bitboard_black["king"] |= 1 << conversions.square_to_index("e8")
+    bitboard_black["queen"] |= 1 << conversions.square_to_index("d8")
+    return (bitboard_white,bitboard_black)
