@@ -33,6 +33,9 @@ def square_to_index(bitboard: int) -> int:
 
 def pixel_to_square(coords: tuple[int, int]) -> int:
     x, y = coords
+
+    if not (0<=x<constants.WIDTH and 0<=y<constants.HEIGHT):
+        return None
     rank = 8 - int(y) // SQUARE_SIZE
     file = int(x) // SQUARE_SIZE
     index = (rank - 1) * 8 + file

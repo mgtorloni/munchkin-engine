@@ -6,7 +6,7 @@ import constants
 import munchkin
 import os 
 #------------------INIT-------------------
-WIDTH, HEIGHT = 960, 960 # Size of window
+WIDTH, HEIGHT = constants.WIDTH, constants.HEIGHT # Size of window
 SQUARE_SIZE:int = constants.SQUARE_SIZE  # The size of each square in the chess board
 x = 600  # How far from the left of the screen
 y = 30 # How far from the top of the screen
