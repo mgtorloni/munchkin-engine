@@ -20,7 +20,7 @@ This is the most efficient way of representing the board, humans have come up wi
 - For the queen(s)
 - For the king
 
-for each side. This can be seen [here](boardrep.py) in my code. They are initialised as 0s (which is still under a 64-bit integer of course).
+for each side. This can be seen [here](https://github.com/mgtorloni/MunchkinEngine-Chess/blob/master/boardrep.py#L11) in my code. They are initialised as 0s (which is still under a 64-bit integer of course).
 
 So a piece on `a1`, for example, would be expressed as `100000...0 = 1 = 2^0`. And every rank is appended to the end of the next rank, so a piece on `a2` would be `000000001...0 = 2^8` and so on.
 ## Shifting pieces  
