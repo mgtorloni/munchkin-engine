@@ -51,22 +51,23 @@ def draw_pieces(
                 # Clear the bit we just drew
                 bitboard &= bitboard - 1
 
-def mouse_on_piece(bitboard:dict[str,int]) -> tuple[bool,str]:
+def mouse_on_piece(bitboard:dict[str,int]) -> tuple[bool,int,str]:
     """Returns if you have clicked on a piece, the square that piece is on and the piece as a tuple"""
     mouse_pos = pygame.mouse.get_pos()
     clicked_square = conversions.pixel_to_square(mouse_pos)
-    for piece, bitboard in bitboard.items(): #for every piece and bitboard in the dictionary
-        if clicked_square & bitboard: #if the clicked_square & bitboard != 0 then we have clicked on a piece
-            return (True, clicked_square, piece)
+    if clicked_square is not None: # If we are not going outside the board
+        for piece, bb in bitboard.items(): #for every piece and bitboard in the dictionary
+            if clicked_square & bb: #if the clicked_square & bitboard != 0 then we have clicked on a piece
+                return (True, clicked_square, piece)
     return False, 0, ""
 
-def handle_move(board_rep: BoardRep, move_handler:MoveHandler, legal_moves:list,  colour: int = 0) -> bool:
+def handle_move(board_rep: BoardRep, move_handler:MoveHandler, legal_moves:list,  colour: str) -> bool:
     """Handles the user's move"""
     on_piece_result = mouse_on_piece(board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black)
     if not on_piece_result[0]:
         return False # There wasn't a piece where the user clicked
     #Otherwise we clicked on a piece
-    source_square,piece_moved = on_piece_result[1], on_piece_result[2]
+    source_square = on_piece_result[1]
     while True:
         evt = pygame.event.wait()
         if evt.type == pygame.MOUSEBUTTONUP: # When we 'unclick'

@@ -47,9 +47,9 @@ print(f"Nodes: {node_count}")
 print(f"Time: {duration:.2f}s")
 print(f"Nodes per Second (NPS): {nps:,.0f}")
 
-board = chess.Board()
+board_chesslib = chess.Board()
 start_time = time.time()
-node_count = perft_python_chess(depth,board)
+node_count = perft_python_chess(depth,board_chesslib)
 end_time = time.time()
 
 duration = end_time - start_time

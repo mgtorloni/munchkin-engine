@@ -1,4 +1,4 @@
-def piece_images(pygame,square_size:int)->dict: 
+def piece_images(pygame,square_size:int)->tuple[dict,dict]: 
     white={
             "pawn": pygame.transform.smoothscale(pygame.image.load("_pieces/white_pawn.png"), (square_size, square_size)),
             "knight": pygame.transform.smoothscale(pygame.image.load("_pieces/white_knight.png"), (square_size, square_size)), 

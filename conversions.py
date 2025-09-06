@@ -31,7 +31,7 @@ def square_to_index(bitboard: int) -> int:
     """Returns index given a bitboard with one bit in it"""     
     return (bitboard & -bitboard).bit_length()-1
 
-def pixel_to_square(coords: tuple[int, int]) -> int:
+def pixel_to_square(coords: tuple[int, int]) -> int|None:
     x, y = coords
 
     if not (0<=x<constants.WIDTH and 0<=y<constants.HEIGHT):

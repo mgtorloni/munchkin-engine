@@ -391,7 +391,7 @@ def test_rook_attacks(square,eat,blocked_squares,colour,expected_squares):
         move_handler.set_bit(
             square= conversions.algebraic_to_bitboard(blocked_square),
             piece = "pawn",
-            colour = colour if eat == False else opposite_colour) #i.e. if we want the piece at the blocked square to be eaten we should make it the opposite_colour
+            colour = colour if eat == False else opposite_colour) # If we want the piece at the blocked square to be eaten we should make it the opposite_colour
     board = board_rep.bitboard_white if colour == "white" else board_rep.bitboard_black
     actual_moves = validator.rook_attacks(board["rook"], colour)
     assert actual_moves==expected_moves
