@@ -34,7 +34,7 @@ def set_occupancy(index: int, bits_in_mask: int, attack_mask: int) -> int:
     return occupancy
 
 def generate_rook_mask_magic(square: int) -> int:
-    """Generates the blocker mask for a rook on a given square"""
+    """Generates the blocker mask for a rook on a given square, avoiding edges of the board"""
     mask = 0
     r, f = square // 8, square % 8
     for i in range(1, 7): mask |= (1 << (r * 8 + i))
@@ -43,7 +43,7 @@ def generate_rook_mask_magic(square: int) -> int:
     return mask
 
 def generate_rook_attacks_for_table(square: int, occupancy: int) -> int:
-    """Generates the full attack set for a rook given a specific blocker pattern,avoiding edges of the board"""
+    """Generates the full attack set for a rook given a specific blocker pattern"""
     attacks = 0
     r, f = square // 8, square % 8
     # North
@@ -120,8 +120,7 @@ def find_magic_number(square: int, mask: int, is_bishop: bool) -> tuple[int, int
 
     bits = pop_count(mask)
     occupancy_variations = 1 << bits
-    shift = 64 - bits
-
+    shift = 64 - bits # The index needs N number of bits. To get the top N bits from a 64-bit result, we must dicard the bottom 64-N bits 
     occupancies = [set_occupancy(i, bits, mask) for i in range(occupancy_variations)]
     attacks = [attack_generator(square, occ) for occ in occupancies]
     
@@ -131,13 +130,16 @@ def find_magic_number(square: int, mask: int, is_bishop: bool) -> tuple[int, int
         magic_number = random.getrandbits(64) & random.getrandbits(64) & random.getrandbits(64)
         # Magic numbers with fewer ones tend to have a better chance of working 
         if pop_count((mask * magic_number) & 0xFF00000000000000) < 6: # This number is unlikely to work
-            continue #Try a new magic number
+            continue # Try a new magic number
 
         fail = False
         used_attacks = [0] * occupancy_variations
         for i in range(occupancy_variations):
             # Apply 64-bit mask to simulate C-style integer overflow
-            magic_index = ((occupancies[i] * magic_number) & 0xFFFFFFFFFFFFFFFF) >> shift
+            magic_index = ((occupancies[i] * magic_number) & 0xFFFFFFFFFFFFFFFF) >> shift # This is the formula we are trying to cater for
+            # and it is a good formula since multiplication by the magic number should scramble the bits enough avoiding as many collisions
+            # as possible, then we shift puts it in the size we want. The purpose of this function is MAKING this formula work 
+
             if used_attacks[magic_index] == 0: # If it is empty we haven't used that slot yet
                 used_attacks[magic_index] = attacks[i]
             elif used_attacks[magic_index] != attacks[i]: # If it is not empty and the contents don't match the correct
@@ -154,8 +156,9 @@ def find_magic_number(square: int, mask: int, is_bishop: bool) -> tuple[int, int
 
 
 if __name__ == "__main__":
+    # We create the lookup tables here 
     
-    # We use the same logic to do the rooks, just substiture rooks for bishops here
+    # We use the same logic to do the rooks, just substitute rooks for bishops here
     bishop_magics = [0] * 64
     bishop_shifts = [0] * 64
     bishop_masks = [0] * 64

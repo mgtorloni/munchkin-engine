@@ -492,11 +492,16 @@ class ValidMoves:
         own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
         square_index = conversions.square_to_index(rook_bitboard)
 
-        blockers = self.occupied_squares & constants.ROOK_MAGIC_MASKS[square_index]
+        blockers = self.occupied_squares & constants.ROOK_MAGIC_MASKS[square_index] # Get the relevant blockers
+
+        # Use the injective function we catered for when creating the lookup table 
         magic_index = ((blockers * constants.ROOK_MAGICS[square_index]) & 0xFFFFFFFFFFFFFFFF) >> constants.ROOK_SHIFTS[square_index] 
+
         
-        base_offset = constants.ROOK_ATTACK_OFFSETS[square_index]
-        
+        base_offset = constants.ROOK_ATTACK_OFFSETS[square_index] # Get the starting index for this square's data within the flat BISHOP_ATTACKS 
+        #table. We have multiple "starts" of blocker patterns in one single list, so we need to navigate to the right one, which can be found in
+        # the offset table
+
         attacks = constants.ROOK_ATTACKS[base_offset + magic_index]
         
         return attacks & ~own_pieces
@@ -507,17 +512,21 @@ class ValidMoves:
         own_pieces = self.white_pieces if colour == "white" else self.black_pieces 
         square_index = conversions.square_to_index(bishop_bitboard) #Convert the bitboard to index
 
-        blockers = self.occupied_squares & constants.BISHOP_MAGIC_MASKS[square_index] # What are the pieces in the way of the bishop
+        blockers = self.occupied_squares & constants.BISHOP_MAGIC_MASKS[square_index] # Get the relevant blockers
+
+        # Use the injective function we catered for when creating the lookup table
         magic_index = ((blockers * constants.BISHOP_MAGICS[square_index]) & 0xFFFFFFFFFFFFFFFF) >> constants.BISHOP_SHIFTS[square_index] 
         
-        base_offset = constants.BISHOP_ATTACK_OFFSETS[square_index]
+        base_offset = constants.BISHOP_ATTACK_OFFSETS[square_index] # Get the starting index for this square's data within the flat BISHOP_ATTACKS 
+        #table. We have multiple "starts" of blocker patterns in one single list, so we need to navigate to the right one, which can be found in
+        # the offset table
         
         attacks = constants.BISHOP_ATTACKS[base_offset + magic_index]
         
         return attacks & ~own_pieces
 
     def queen_attacks(self,queen_bitboard:int,colour:str = "white") -> int:
-        """Finds the squares the queen is attacking (they are just rooks and bishops in one piece)"""
+        """Finds the squares the queen is attacking (they are just a rooks and a bishop in one piece)"""
         return self.rook_attacks(queen_bitboard,colour)|self.bishop_attacks(queen_bitboard,colour) 
 
     def generate_pseudo_legal_moves(self, colour: str) -> list:
