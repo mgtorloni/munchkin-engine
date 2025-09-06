@@ -20,7 +20,7 @@ This is the most efficient way of representing the board, humans have come up wi
 - For the queen(s)
 - For the king
 
-for each side. This can be seen [here](https://github.com/mgtorloni/MunchkinEngine-Chess/blob/master/boardrep.py#L9) in my code. They are initialised as 0s (which is still under a 64-bit integer of course).
+for each side. This can be seen [here](boardrep.py) in my code. They are initialised as 0s (which is still under a 64-bit integer of course).
 
 So a piece on `a1`, for example, would be expressed as `100000...0 = 1 = 2^0`. And every rank is appended to the end of the next rank, so a piece on `a2` would be `000000001...0 = 2^8` and so on.
 ## Shifting pieces  
@@ -37,9 +37,9 @@ To summarise, for this particular pattern, we want to do `attacks & ~own_pieces 
 ### King
 In my implementation of the king move generation, you will see it divided in a few parts:
 - **The pseudo move calculation**: This can be done in exactly the same way as the knight pattern, but instead shifting the bits so that the it matches the king pattern.
-- **Checking for checks**: For kings, it is important to check if the move we are making isn't going to leave us in check. This is done separately, so in [boardrep.py]() you will see that I have two functions, one named `generate_all_legal_moves` which does this check and `generate_pseudo_legal_moves`, which doesn't do this check. In either case the checking is done, I just call this "checking" in different places to make things more performant in the [Minimax algorithm]() as the `is_square_attacked` function is very expensive.
-- **Castling rights**: Checking for castling rights is also done separately, I have made two lists (one for white and one for black) which have each two elements, representing, if that colour can castle king-side, or queen-side. The function `can_castle` in [boardrep.py](https://github.com/mgtorloni/MunchkinEngine-Chess) does this check and the function `make_move` changes the state appropriately. 
-- **Checkmate**:  checking for checkmate, which is done by checking if there are no legal moves and then checking if the square the king is on is attacked, see [game.py](https://github.com/mgtorloni/MunchkinEngine-Chess) for reference 
+- **Checking for checks**: For kings, it is important to check if the move we are making isn't going to leave us in check. This is done separately, so in [boardrep.py](boardrep.py) you will see that I have two functions, one named `generate_all_legal_moves` which does this check and `generate_pseudo_legal_moves`, which doesn't do this check. In either case the checking is done, I just call this "checking" in different places to make things more performant in the [Minimax algorithm]() as the `is_square_attacked` function is very expensive.
+- **Castling rights**: Checking for castling rights is also done separately, I have made two lists (one for white and one for black) which have each two elements, representing, if that colour can castle king-side, or queen-side. The function `can_castle` in [boardrep.py](boardrep.py) does this check and the function `make_move` changes the state appropriately. 
+- **Checkmate**:  checking for checkmate, which is done by checking if there are no legal moves and then checking if the square the king is on is attacked, see [game.py](game.py) for reference 
 
 I would say some of these could have been implemented in a more elegant way. And I would encourage the people doing their own chess engine and following this guide to encapsulate these into their own objects as much as one can, following good programming principles. This may well be refactored at a later date.
 
