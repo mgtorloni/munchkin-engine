@@ -194,7 +194,7 @@ if __name__ == "__main__":
     offset = 0
     for i in range(64):
         bishop_attack_offsets[i] = offset
-        offset += (1 << pop_count(bishop_masks[i]))
+        offset += (1 << pop_count(bishop_masks[i])) # The start of a blocker pattern in 
         
     print(f"BISHOP_ATTACK_OFFSETS = {bishop_attack_offsets}\n")
     print(f"BISHOP_ATTACKS = {bishop_attack_table}\n")

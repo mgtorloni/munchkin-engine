@@ -450,7 +450,7 @@ class ValidMoves:
         if colour == "white":
             # If we are white we go up the board so <<8 is the correct direction to push
             enemy_pieces = self.black_pieces
-            single_push = (pawn_bitboard << 8) & ~self.occupied_squares #We can't move if there is a piece right in from
+            single_push = (pawn_bitboard << 8) & ~self.occupied_squares # We can't move if there is a piece right in front
             if single_push and (pawn_bitboard & constants.RANK_2): # If we are in the starting rank we may double push
                 double_push = (pawn_bitboard << 16) & ~self.occupied_squares
                 moves = single_push | double_push
