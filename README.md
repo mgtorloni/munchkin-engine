@@ -68,7 +68,11 @@ Logically the problem becomes a bit easier, you fix the piece's square first. Fo
 
 Put it simply, we want to, given a pattern of relevant blockers and the position of the rook, find what are the squares that rook is attacking. That involves finding a formula that maps these two to an index uniquely (no two positions should be the same otherwise there is something wrong).
 
-Let's begin, we first make a list of all of the occupancy masks, for a rook on `a1` for example, we only care about the squares from `a1-g1` and `a1-a7` since a blocker on `a8` wouldn't do anything anyway. Then we make an attack table, which for each occupancy will figure out where the attack files/diagonals have to stop and give the full attack as a bitboard for that variation. Because this is a single list, we actually need to be able to find where the variations for each fixed square finishes and ends so we can navigate it, that is why we also have an `offset table`. Finally we need for each occupancy we need to find a `magic number` which we are going to truncate to find the index, this leaves us with a table of magic numbers and shifts as well.
+Let's begin! First for a given square, we generate a list of unique occupancy variations from an occupancy mask, for a rook on `a1` for example, this mask would include squares from `b1-g1` and `a2-a7` since a blocker on `a8` wouldn't do anything anyway. Nex, we generate an attack table, which for each occupancy, will figure out where the attack files/diagonals have to stop and give the full attack as a bitboard for that variation. Because this is a single list, we actually need to be able to find where the variations for each fixed square starts and ends so we can navigate it, that is why we also have an `offset table`. Finally, for each 64 squares, we need to find a unique `magic number`. This number when applied to any occupancy for that square, and then truncated with a shift, has to give us the correct index in the attack table. This leaves us with a table of magic numbers and shifts as well.
+
+For more details, see [magic_stuff.py](magic_stuff.py).
+
+Now, we need a formula (a function) to combine all of these, the one I chose is `((occupancy * magic) & 0xFFFFFFFFFFFFFFFF) >> shift` but theoretically there should be many functions that would fulfill this same purpose, just make sure that whatever function you choose, is the one you are generating for.
 
 
 ### Hyperbola Quintessence
