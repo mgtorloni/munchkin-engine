@@ -1,0 +1,13 @@
+chess==1.11.2
+iniconfig==2.1.0
+mypy==1.17.1
+mypy_extensions==1.1.0
+numpy==2.3.2
+packaging==25.0
+pathspec==0.12.1
+pluggy==1.6.0
+pygame==2.6.1
+Pygments==2.19.2
+pytest==8.4.1
+python-chess==1.999
+typing_extensions==4.15.0
