@@ -103,7 +103,7 @@ def main():
     #------------------Config-----------------
     pygame.display.init()
     screen = pygame.display.set_mode((constants.WIDTH, constants.HEIGHT))
-    WHITE_PCS, BLACK_PCS = pieces.piece_images(pygame, SQUARE_SIZE)
+    WHITE_PCS, BLACK_PCS = pieces.piece_images(pygame,SQUARE_SIZE)
     clock = pygame.time.Clock()
     #-----------------------------------------
     #generate all legal moves for white's first turn
