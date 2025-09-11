@@ -9,6 +9,13 @@ making it a fantastic entry-point for beginners trying to get into the world of 
 
 That said, this engine will be rated around 1600-1700 on Lichess, so it will beat the average Joe, but definitely no Masters.  
 
+# Instructions
+To run the program make a virtual environment with 
+`python -m venv .venv` then
+`source .venv/bin/activate` to activate your environment and
+`pip install -r requirements.txt` to install the dependencies and
+`python game.py` to run the program.
+
 # The Ultimate Guide to Move Generation
 This is a guide that is supposed to explain how each piece moves and common techniques used for move generation such as [Magic Bitboards]() and [Hyperbola Quintessence]().
 ## Bitboards
@@ -86,6 +93,7 @@ Furthermore, a very critical performance issue comes from the parallelism in my 
 
 Finally, there is something that doesn't feel good to me about the amount of for loops I use when I generate the legal moves, every bitboard has to be looped through for the the most relevant bit, it feels like this could be fixed by adding a bitboard for each individual piece, but it is not immediate to me how much that would help in terms of performance.
 
+
 # Resources
 - [A step-by-step guide to building a simple chess AI](https://www.freecodecamp.org/news/simple-chess-ai-step-by-step-1d55a9266977/)
 - [Visualizing Chess bitboards](https://healeycodes.com/visualizing-chess-bitboards)
@@ -96,4 +104,8 @@ Finally, there is something that doesn't feel good to me about the amount of for
   - [King attacks](https://www.chessprogramming.org/King_Pattern)
   - [Pawn attacks](https://www.chessprogramming.org/Pawn_Attacks_(Bitboards))
   - [Hyperbola Quintessence](https://www.chessprogramming.org/Hyperbola_Quintessence)
+
+
+# Acknowledgements
+The pieces were got from [cburnett](https://github.com/lichess-org/lila/tree/master/public/piece/cburnett)
   
