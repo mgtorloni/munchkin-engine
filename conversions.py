@@ -1,5 +1,6 @@
 import constants 
 SQUARE_SIZE = constants.SQUARE_SIZE
+
 def square_to_algebraic(bb:int)->str:
     square_index = bb.bit_length() - 1
     file_index = square_index % 8 

@@ -45,6 +45,10 @@ def generate_rook_mask_hyperbola(square: int) -> int:
 
 
 def generate_bishop_mask(square: int) -> int:
+    """
+    In reality this function was broken up in two functions, creating right diagonal masks (45 degrees) and left diagonal masks (135 degrees) for the bishops 
+    separately, this is important when passing it through the hyperbola quintessential formula
+    """
     rank = square // 8
     file = square % 8
     mask = 0
@@ -75,12 +79,6 @@ def generate_bishop_mask(square: int) -> int:
         r += 1
         f -= 1
         mask |= 1 << (r * 8 + f)
-    """
-    
-    In reality this function was broken up in two functions, creating right diagonal masks (45 degrees) and left diagonal masks (135 degrees) for the bishops 
-    separately, this is important when passing it through the hyperbola quintessential formula
-
-    """
 
     return mask
 
