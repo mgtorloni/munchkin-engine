@@ -1,11 +1,10 @@
 import constants
 import conversions
-import copy
 from typing import TypedDict
 
 class BoardRep:
     """Turns board into a bitboards"""
-
+    
     def __init__(self):
         """Just initialise the board"""
         self.bitboard_black={
